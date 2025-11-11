@@ -1,93 +1,266 @@
-# TaskHub_Frontend
+# TaskHub Frontend
 
+TaskHub là một nền tảng quản lý nhiệm vụ và tiến độ theo mô hình DevSecOps trên AWS, được phát triển với Vite + React + JavaScript.
 
+## 🚀 Tính năng chính
 
-## Getting started
+- **Dashboard**: Trang tổng quan với thống kê dự án, task và hoạt động gần đây
+- **Authentication**: Đăng nhập/đăng ký với validation và tích hợp sẵn cho AWS Cognito
+- **Project Management**: Quản lý dự án với CRUD operations
+- **Task Management**: Kanban board với drag & drop cho quản lý task
+- **Role-based Access Control**: Phân quyền theo vai trò (Admin, Manager, Member)
+- **Responsive Design**: Giao diện responsive với Tailwind CSS
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 🛠 Công nghệ sử dụng
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **Frontend Framework**: React 19 với Vite
+- **Routing**: React Router DOM
+- **Styling**: Tailwind CSS
+- **State Management**: React Context API
+- **HTTP Client**: Axios với interceptors
+- **Form Handling**: React Hook Form
+- **Icons**: Heroicons
+- **Drag & Drop**: @dnd-kit
+- **Date Handling**: date-fns
+- **Charts**: Recharts
+- **Notifications**: React Hot Toast
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 📁 Cấu trúc dự án
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/taskhub_group/taskhub_frontend.git
-git branch -M main
-git push -uf origin main
+src/
+├── components/         # Shared components
+│   ├── Layout.jsx     # Layout chính
+│   └── Navbar.jsx     # Navigation bar
+├── pages/             # Page components
+│   ├── Login.jsx      # Trang đăng nhập
+│   ├── Signup.jsx     # Trang đăng ký
+│   └── Dashboard.jsx  # Trang dashboard
+├── context/           # React contexts
+│   ├── AuthContext.jsx   # Authentication state
+│   └── AppContext.jsx    # Application state
+├── services/          # API services
+│   └── api.js         # API configuration và methods
+├── hooks/            # Custom hooks
+│   └── useContext.js  # Context hooks
+└── utils/            # Utility functions
 ```
 
-## Integrate with your tools
+## 🚦 Cài đặt và chạy dự án
 
-- [ ] [Set up project integrations](https://gitlab.com/taskhub_group/taskhub_frontend/-/settings/integrations)
+### Prerequisites
 
-## Collaborate with your team
+- Node.js 18+ và npm
+- Git
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Cài đặt
 
-## Test and Deploy
+1. Clone repository:
+   ```bash
+   git clone <repository-url>
+   cd taskhub-frontend
+   ```
 
-Use the built-in continuous integration in GitLab.
+2. Cài đặt dependencies:
+   ```bash
+   npm install
+   ```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+3. Tạo file môi trường:
+   ```bash
+   cp .env.example .env
+   ```
 
-***
+4. Chỉnh sửa file `.env` theo cấu hình của bạn:
+   ```
+   VITE_API_URL=http://localhost:3000/api/v1
+   VITE_AWS_REGION=us-east-1
+   VITE_COGNITO_USER_POOL_ID=your-user-pool-id
+   VITE_COGNITO_CLIENT_ID=your-client-id
+   ```
 
-# Editing this README
+5. Chạy development server:
+   ```bash
+   npm run dev
+   ```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+6. Mở trình duyệt và truy cập: `http://localhost:5173`
 
-## Suggestions for a good README
+### Build cho production
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+npm run build
+```
 
-## Name
-Choose a self-explaining name for your project.
+### Preview production build
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+npm run preview
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🔐 Authentication Flow
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Dự án đã được tích hợp sẵn để hoạt động với AWS Cognito:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+1. **Login**: Form đăng nhập với email/password
+2. **Signup**: Form đăng ký với validation đầy đủ
+3. **Token Management**: Tự động refresh token khi hết hạn
+4. **Protected Routes**: Chỉ user đã đăng nhập mới truy cập được
+5. **Role-based Access**: Phân quyền theo vai trò user
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 📊 API Integration
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+API service đã được cấu hình với:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+- **Base URL**: Configurable through environment variables
+- **Authentication**: Automatic token attachment
+- **Error Handling**: Centralized error handling
+- **Request/Response Interceptors**: Auto token refresh
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### API Endpoints
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```javascript
+// Auth
+POST /auth/login
+POST /auth/signup
+POST /auth/logout
+GET /auth/me
+POST /auth/refresh
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+// Projects
+GET /projects
+GET /projects/:id
+POST /projects
+PUT /projects/:id
+DELETE /projects/:id
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+// Tasks
+GET /tasks
+GET /tasks/:id
+POST /tasks
+PUT /tasks/:id
+DELETE /tasks/:id
+PATCH /tasks/:id/status
+```
 
-## License
-For open source projects, say how it is licensed.
+## 🎨 UI Components
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Layout
+- **Navbar**: Responsive navigation với mobile menu
+- **Layout**: Wrapper layout với outlet cho pages
+
+### Pages
+- **Login**: Form đăng nhập với validation
+- **Signup**: Form đăng ký với role selection
+- **Dashboard**: Tổng quan với stats và recent activities
+
+### Planned Components
+- **ProjectList**: Danh sách dự án với filter/search
+- **TaskBoard**: Kanban board với drag & drop
+- **TaskCard**: Component hiển thị task
+- **Modal**: Reusable modal component
+
+## 🔄 State Management
+
+### AuthContext
+- User authentication state
+- Login/logout functionality
+- Token management
+- User profile data
+
+### AppContext
+- Project management state
+- Task management state
+- Filters và search state
+- Global loading và error states
+
+## 📱 Responsive Design
+
+Giao diện được thiết kế responsive với Tailwind CSS:
+- **Mobile**: < 640px
+- **Tablet**: 640px - 1024px  
+- **Desktop**: > 1024px
+
+## 🧪 Testing
+
+```bash
+# Run tests (to be implemented)
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 📈 Deployment
+
+### AWS S3 + CloudFront (Recommended)
+
+1. Build project:
+   ```bash
+   npm run build
+   ```
+
+2. Upload `dist` folder to S3 bucket
+
+3. Configure CloudFront distribution
+
+4. Setup Route53 for custom domain
+
+### GitHub Actions CI/CD
+
+File workflow sẽ được tạo để tự động:
+- Build và test
+- Security scan
+- Deploy lên AWS S3
+- Invalidate CloudFront cache
+
+## 🔒 Security Features
+
+- **XSS Protection**: Sanitized inputs
+- **CSRF Protection**: Token-based authentication
+- **Secure Storage**: Token storage best practices
+- **API Security**: Request/response validation
+- **Role-based Access**: Authorization checks
+
+## 🌐 Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API URL | `https://api.taskhub.com/v1` |
+| `VITE_AWS_REGION` | AWS Region | `us-east-1` |
+| `VITE_COGNITO_USER_POOL_ID` | Cognito User Pool ID | `us-east-1_xxxxxxxx` |
+| `VITE_COGNITO_CLIENT_ID` | Cognito Client ID | `xxxxxxxxxxxxxxxxxx` |
+
+## 🤝 Contribution
+
+1. Fork repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Create Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 👥 Team Roles
+
+Dự án này được phát triển theo mô hình team với các role:
+
+1. **Backend Lead**: API design, architecture, code standards
+2. **Backend Developer 1**: Task CRUD, DynamoDB optimization  
+3. **Backend Developer 2**: Project/User CRUD, Auth & Security
+4. **Frontend Developer**: UI/UX, API integration (current role)
+5. **DevOps Engineer**: CI/CD, Infrastructure, Security monitoring
+
+## 📞 Support
+
+Nếu có vấn đề hoặc câu hỏi, vui lòng tạo issue trên GitHub repository.
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
