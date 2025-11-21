@@ -10,6 +10,8 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useContext';
+import { dashboardAPI } from '../services/api'; // ← Chỉ import dashboardAPI
+import toast from 'react-hot-toast';
 
 const mockStats = {
   totalProjects: 12,
@@ -57,8 +59,8 @@ const mockRecentActivities = [
 ];
 
 export default function Dashboard() {
-  const [stats] = useState(mockStats);
-  const [activities] = useState(mockRecentActivities);
+  const [stats, setStats] = useState(mockStats);
+  const [activities, setActivities] = useState(mockRecentActivities);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
@@ -69,14 +71,36 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
-      // For now using mock data, replace with real API call later
-      // const response = await dashboardAPI.getStats();
-      // setStats(response.data.data);
       
-      // const activitiesResponse = await dashboardAPI.getActivities();
-      // setActivities(activitiesResponse.data.data);
+      console.log('🔄 Đang kết nối với API...');
+      
+      // Sử dụng dashboardAPI thay vì gọi trực tiếp taskAPI
+      const statsResponse = await dashboardAPI.getStats();
+      console.log('📊 Stats từ API:', statsResponse.data);
+      
+      const activitiesResponse = await dashboardAPI.getActivities();
+      console.log('📋 Activities từ API:', activitiesResponse.data);
+      
+      // Cập nhật state
+      setStats(statsResponse.data);
+      setActivities(activitiesResponse.data);
+      
+      toast.success('🎉 Đã kết nối thành công với backend!');
+      
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ Error fetching dashboard data:', error);
+      
+      if (error.response) {
+        toast.error(`API Error: ${error.response.status}`);
+      } else if (error.request) {
+        toast.error('Không thể kết nối với server');
+      } else {
+        toast.error(`Lỗi: ${error.message}`);
+      }
+      
+      // Fallback to mock data
+      setStats(mockStats);
+      setActivities(mockRecentActivities);
     } finally {
       setIsLoading(false);
     }
