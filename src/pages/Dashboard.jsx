@@ -10,57 +10,12 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useContext';
-import { dashboardAPI } from '../services/api'; // ← Chỉ import dashboardAPI
+import { dashboardAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const mockStats = {
-  totalProjects: 12,
-  totalTasks: 45,
-  pendingTasks: 15,
-  inProgressTasks: 18,
-  completedTasks: 12,
-  totalMembers: 8,
-  overdueeTasks: 3,
-};
-
-const mockRecentActivities = [
-  {
-    id: 1,
-    type: 'task_completed',
-    message: 'John Doe đã hoàn thành task "Setup database"',
-    time: '2 phút trước',
-    icon: CheckCircleIcon,
-    color: 'text-green-600',
-  },
-  {
-    id: 2,
-    type: 'task_assigned',
-    message: 'Task "Design UI components" đã được giao cho Jane Smith',
-    time: '15 phút trước',
-    icon: ClipboardDocumentListIcon,
-    color: 'text-blue-600',
-  },
-  {
-    id: 3,
-    type: 'project_created',
-    message: 'Dự án mới "Mobile App" đã được tạo',
-    time: '1 giờ trước',
-    icon: FolderIcon,
-    color: 'text-purple-600',
-  },
-  {
-    id: 4,
-    type: 'task_overdue',
-    message: 'Task "Code review" đã quá hạn',
-    time: '2 giờ trước',
-    icon: ExclamationTriangleIcon,
-    color: 'text-red-600',
-  },
-];
-
 export default function Dashboard() {
-  const [stats, setStats] = useState(mockStats);
-  const [activities, setActivities] = useState(mockRecentActivities);
+  const [stats, setStats] = useState(null);
+  const [activities, setActivities] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
@@ -74,18 +29,16 @@ export default function Dashboard() {
       
       console.log('🔄 Đang kết nối với API...');
       
-      // Sử dụng dashboardAPI thay vì gọi trực tiếp taskAPI
       const statsResponse = await dashboardAPI.getStats();
       console.log('📊 Stats từ API:', statsResponse.data);
       
       const activitiesResponse = await dashboardAPI.getActivities();
       console.log('📋 Activities từ API:', activitiesResponse.data);
       
-      // Cập nhật state
       setStats(statsResponse.data);
       setActivities(activitiesResponse.data);
       
-      toast.success('🎉 Đã kết nối thành công với backend!');
+      toast.success('Đã tải dữ liệu dashboard từ API');
       
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
@@ -97,16 +50,12 @@ export default function Dashboard() {
       } else {
         toast.error(`Lỗi: ${error.message}`);
       }
-      
-      // Fallback to mock data
-      setStats(mockStats);
-      setActivities(mockRecentActivities);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const statCards = [
+  const statCards = stats ? [
     {
       name: 'Tổng số dự án',
       value: stats.totalProjects,
@@ -149,12 +98,22 @@ export default function Dashboard() {
       color: 'bg-purple-500',
       href: '/users',
     },
-  ];
+  ] : [];
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-red-600">
+          Không tải được dữ liệu dashboard từ API. Hãy kiểm tra backend và thử tải lại trang.
+        </p>
       </div>
     );
   }

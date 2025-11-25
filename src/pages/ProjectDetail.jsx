@@ -17,6 +17,7 @@ import { useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
 import TaskModal from '../components/TaskModal';
 import toast from 'react-hot-toast';
+//import { projectAPI } from '../services/api'; // TODO: sau này có thể thêm projectAPI
 
 // Mock data - same as in ProjectList but with more details
 const mockProject = {
@@ -135,25 +136,41 @@ export default function ProjectDetail() {
   useEffect(() => {
     const fetchProjectDetail = async () => {
       try {
-        // For now using mock data
-        // const response = await projectsAPI.getProject(id);
-        // setProject(response.data.data);
-        setProject(mockProject);
-        setTasks(mockTasks);
-        setCurrentProject(mockProject);
-      } catch {
+        // TODO: API PROJECT
+        // Khi có API project, thay mockProject bằng dữ liệu từ backend:
+        // const resProject = await projectAPI.getProject(id);
+        // const projectFromApi = resProject.data; // hoặc resProject.data.data tùy backend
+        // setProject(projectFromApi);
+        // setCurrentProject(projectFromApi);
+
+        // Tạm thời vẫn dùng mock project cho UI
+        const projectFromMock = mockProject;
+        setProject(projectFromMock);
+        setCurrentProject(projectFromMock);
+
+        // API TASK: lấy danh sách task theo projectId từ backend
+        const resTasks = await taskAPI.getTasks({ projectId: id });
+        const tasksFromApi = resTasks.data || [];
+        setTasks(tasksFromApi);
+      } catch (error) {
+        console.error('Lỗi tải chi tiết dự án:', error);
         toast.error('Lỗi tải thông tin dự án');
         navigate('/projects');
       }
     };
-    
+
     fetchProjectDetail();
   }, [id, navigate, setCurrentProject]);
 
   const handleUpdateProject = async (projectData) => {
     try {
-      // const response = await projectsAPI.updateProject(id, projectData);
-      // setProject(response.data.data);
+      // TODO: API PROJECT UPDATE
+      // Khi có API project update:
+      // const res = await projectAPI.updateProject(id, projectData);
+      // const updatedProjectFromApi = res.data; // hoặc res.data.data
+      // setProject(updatedProjectFromApi);
+      // setCurrentProject(updatedProjectFromApi);
+
       const updatedProject = { ...project, ...projectData };
       setProject(updatedProject);
       setCurrentProject(updatedProject);
@@ -166,12 +183,17 @@ export default function ProjectDetail() {
 
   const handleCreateTask = async (taskData) => {
     try {
-      // const response = await tasksAPI.createTask({ ...taskData, projectId: id });
-      // setTasks([response.data.data, ...tasks]);
+      // TODO: API TASK CREATE
+      // Gợi ý body khi gọi backend:
+      // const payload = { ...taskData, projectId: id };
+      // const res = await taskAPI.createTask(payload);
+      // const createdTask = res.data; // hoặc res.data.data
+      // setTasks([createdTask, ...tasks]);
+
+      // Tạm thời: thêm task mới vào state để test UI
       const newTask = {
         id: Date.now(),
         ...taskData,
-        assignee: project.members.find(m => m.id === taskData.assigneeId),
         createdAt: new Date().toISOString().split('T')[0],
         updatedAt: new Date().toISOString().split('T')[0],
       };

@@ -13,6 +13,7 @@ import {
 import { useAuth, useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
 import toast from 'react-hot-toast';
+//import { projectsAPI } from '../services/api'; có api thì bỏ comment
 
 const mockProjects = [
   {
@@ -98,8 +99,8 @@ const priorityConfig = {
 };
 
 export default function ProjectList() {
-  const [projects, setProjects] = useState(mockProjects);
-  const [filteredProjects, setFilteredProjects] = useState(mockProjects);
+  const [projects, setProjects] = useState([]);
+  const [filteredProjects, setFilteredProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -113,10 +114,12 @@ export default function ProjectList() {
 
   const fetchProjects = async () => {
     try {
-      // For now using mock data
-      // const response = await projectsAPI.getProjects();
-      // setProjects(response.data.data);
-    } catch {
+      // TODO: backend phải trả về mảng project
+      const res = await projectsAPI.getProjects();
+      const list = res.data || []; // hoặc res.data.data tùy backend
+      setProjects(list);
+    } catch (error) {
+      console.error('Lỗi tải danh sách dự án:', error);
       toast.error('Lỗi tải danh sách dự án');
     }
   };
@@ -153,8 +156,13 @@ export default function ProjectList() {
 
   const handleCreateProject = async (projectData) => {
     try {
-      // const response = await projectsAPI.createProject(projectData);
-      // setProjects([response.data.data, ...projects]);
+      // TODO: backend create project
+      // const res = await projectsAPI.createProject(projectData);
+      // const created = res.data; // hoặc res.data.data
+      // setProjects([created, ...projects]);
+
+      // Tạm thời (nếu backend chưa sẵn sàng) bạn có thể comment block trên
+      // và để newProject để test UI, nhưng khi backend xong thì xóa đoạn mock này:
       const newProject = {
         id: Date.now(),
         ...projectData,
@@ -166,9 +174,11 @@ export default function ProjectList() {
         updatedAt: new Date().toISOString().split('T')[0],
       };
       setProjects([newProject, ...projects]);
+
       toast.success('Tạo dự án thành công!');
       setShowCreateModal(false);
-    } catch {
+    } catch (error) {
+      console.error('Lỗi tạo dự án:', error);
       toast.error('Lỗi tạo dự án');
     }
   };

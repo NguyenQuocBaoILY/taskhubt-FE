@@ -1,5 +1,222 @@
 # TaskHub Frontend
 
+Dự án này là giao diện web của ứng dụng quản lý công việc **TaskHub**, xây bằng **React + Vite + Tailwind CSS v3**.
+
+README này viết cho người mới, chỉ cần làm đúng từng bước là chạy được.
+## 1. Cần chuẩn bị trước
+
+Trước khi bắt đầu, hãy cài những phần mềm sau (chỉ cần cài 1 lần trên máy):
+
+1. **Node.js LTS (khuyến nghị 18.x hoặc 20.x)**  
+    - Tải tại: https://nodejs.org/en/download  
+    - Cài xong, mở **PowerShell** và kiểm tra:
+
+    ```powershell
+    node -v
+    npm -v
+    ```
+
+    Nếu hiện ra số version (ví dụ `v20.10.0`) là được.
+
+2. **.NET SDK 8.0** (dùng cho backend)  
+    - Tải tại: https://dotnet.microsoft.com/download/dotnet/8.0  
+    - Sau khi cài, kiểm tra:
+
+    ```powershell
+    dotnet --version
+    ```
+
+    Nếu thấy số version là OK.
+
+3. **Git** (không bắt buộc nhưng nên có):  
+    - Tải tại: https://git-scm.com/downloads
+
+---
+
+## 2. Cấu trúc dự án
+
+Trong thư mục chính `projectAWS` bạn có:
+
+- `taskhub_frontend/` – mã nguồn giao diện React/Vite (thư mục bạn đang mở).  
+- `taskhub_backend-master/` – mã nguồn API backend ASP.NET Core.
+
+Khi chạy dự án đầy đủ, ta sẽ:
+- Chạy **backend** ở cổng `http://localhost:15155`.
+- Chạy **frontend** ở cổng `http://localhost:5173`.
+
+---
+
+## 3. Thiết lập và chạy FRONTEND
+
+Thực hiện các bước sau trong PowerShell.
+
+### 3.1. Cài thư viện (chỉ lần đầu)
+
+```powershell
+cd D:\projectAWS\taskhub_frontend
+npm install
+```
+
+Lệnh này có thể chạy 1–5 phút tùy máy. Chỉ cần làm lại nếu xóa thư mục `node_modules`.
+
+### 3.2. Kiểm tra file cấu hình `.env`
+
+Trong thư mục `taskhub_frontend`, tạo (hoặc mở) file `.env` và đảm bảo có dòng:
+
+```env
+VITE_API_BASE_URL=http://localhost:15155
+```
+
+Dòng này nói cho frontend biết phải gọi API ở đâu.
+
+### 3.3. Chạy dev server
+
+```powershell
+cd D:\projectAWS\taskhub_frontend
+npm run dev
+```
+
+- Sau khi chạy thành công, bạn sẽ thấy dòng tương tự:
+   - `Local:   http://localhost:5173/`
+- Mở trình duyệt (Chrome/Edge) và truy cập: `http://localhost:5173`.
+
+Nếu có lỗi đỏ trong terminal, copy nội dung lỗi đó để hỏi lại.
+
+---
+
+## 4. Thiết lập và chạy BACKEND
+
+Frontend gọi API từ backend, vì vậy muốn dữ liệu thật bạn cần chạy backend.
+
+### 4.1. Cài thư viện backend (NuGet)
+
+Thông thường chỉ cần lệnh `dotnet restore` một lần:
+
+```powershell
+cd D:\projectAWS\taskhub_backend-master
+dotnet restore
+```
+
+### 4.2. Chạy Web API
+
+Trong project backend, thư mục Web API chính là:
+
+```text
+D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost
+```
+
+Để chạy API:
+
+```powershell
+cd "D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost"
+dotnet run
+```
+
+- Nếu chạy thành công, bạn sẽ thấy ứng dụng lắng nghe ở địa chỉ kiểu:
+   - `http://localhost:15155`
+- Đừng tắt cửa sổ này khi đang dùng frontend.
+
+Nếu `dotnet run` báo lỗi (Exit Code 1), hãy đọc dòng lỗi cuối cùng và gửi lại để xử lý.
+
+---
+
+## 5. Thứ tự chạy đầy đủ
+
+1. **Mở một cửa sổ PowerShell** để chạy backend:
+
+    ```powershell
+    cd "D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost"
+    dotnet run
+    ```
+
+2. **Mở một cửa sổ PowerShell khác** để chạy frontend:
+
+    ```powershell
+    cd D:\projectAWS\taskhub_frontend
+    npm run dev
+    ```
+
+3. Mở trình duyệt tại `http://localhost:5173`.
+
+Chỉ cần cả hai cửa sổ vẫn mở, hệ thống sẽ hoạt động.
+
+---
+
+## 6. Đăng nhập / Đăng ký hiện tại hoạt động thế nào?
+
+Quan trọng: ở phiên bản hiện tại **chưa kết nối API thật cho user**.
+
+- Khi bấm **Đăng ký tài khoản** hoặc **Đăng nhập**, app đang dùng **dữ liệu giả (mock)**:
+   - Thông tin user và token **lưu trong `localStorage` của trình duyệt**, không lưu vào database.
+   - Vì vậy bạn có thể đăng ký / đăng nhập được **dù backend chưa bật**.
+- Phần quản lý **Task** thì đang kết nối thật với API `/api/Task` của backend.
+
+Sau này nếu bạn thêm API Auth thật (Register/Login), chỉ cần sửa `AuthContext` và `services/api.js` để dùng API thay vì mock.
+
+---
+
+## 7. Lỗi thường gặp và cách xử lý nhanh
+
+### 7.1. Lỗi `npm run dev` báo không tìm thấy `node` hoặc `npm`
+
+- Nguyên nhân: chưa cài Node.js hoặc chưa mở lại PowerShell sau khi cài.  
+- Cách xử lý: cài Node.js từ https://nodejs.org, rồi **đóng và mở lại** PowerShell, thử lại:
+
+   ```powershell
+   node -v
+   npm -v
+   ```
+
+### 7.2. Lỗi `dotnet` không được nhận diện
+
+- Nguyên nhân: chưa cài .NET SDK.  
+- Cách xử lý: cài .NET 8 từ https://dotnet.microsoft.com/download/dotnet/8.0 rồi mở lại PowerShell.
+
+### 7.3. Frontend chạy được nhưng không load được Task
+
+- Kiểm tra backend đã chạy chưa (`dotnet run`).
+- Đảm bảo file `.env` trong `taskhub_frontend` có đúng dòng:
+
+   ```env
+   VITE_API_BASE_URL=http://localhost:15155
+   ```
+
+- F5 lại trang `http://localhost:5173/tasks`.
+
+### 7.4. Lỗi CORS hoặc HTTPS khi gọi API
+
+Phiên bản này được cấu hình để chạy **HTTP** cho dev:
+- Backend: `http://localhost:15155`
+- Frontend: `http://localhost:5173`
+
+Nếu bạn thấy URL dạng `https://localhost:17057`, hãy kiểm tra:
+- Dùng đúng đường dẫn `http://localhost:15155` trong `.env`.
+- Đảm bảo trong `Program.cs` của backend đã tắt `UseHttpsRedirection` khi dev.
+
+---
+
+## 8. Nơi chỉnh màu sắc, giao diện
+
+- **Tailwind config**: `taskhub_frontend/tailwind.config.js` – cấu hình màu `primary`, `gray`, font chữ.
+- **CSS gốc**: `taskhub_frontend/src/index.css` – import Tailwind và reset cơ bản.
+- **Layout chung** (navbar + khung nội dung): `taskhub_frontend/src/components/Layout.jsx`.
+- **Trang chính**:
+   - Đăng nhập: `src/pages/Login.jsx`
+   - Đăng ký: `src/pages/Signup.jsx`
+   - Dashboard: `src/pages/Dashboard.jsx`
+   - Task list: `src/pages/TaskPage.jsx`
+
+---
+
+## 9. Cần trợ giúp thêm
+
+Nếu bạn làm đúng các bước mà vẫn không chạy được:
+- Chụp màn hình terminal (lỗi đỏ) và màn hình browser.
+- Hoặc copy nguyên thông báo lỗi và đường dẫn thư mục hiện tại.
+
+Chỉ cần hai thông tin đó là có thể hỗ trợ debug tiếp rất nhanh.
+# TaskHub Frontend
+
 TaskHub là một nền tảng quản lý nhiệm vụ và tiến độ theo mô hình DevSecOps trên AWS, được phát triển với Vite + React + JavaScript.
 
 ## 🚀 Tính năng chính
