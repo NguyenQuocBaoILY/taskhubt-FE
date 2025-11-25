@@ -1,27 +1,10 @@
 import axios from 'axios';
 
-// Function để tự động detect base URL
-const getBaseURL = () => {
-  const envURL = import.meta.env.VITE_API_BASE_URL;
-  
-  if (envURL) {
-    return envURL;
-  }
-  
-  // Auto-detect based on current protocol
-  const protocol = window.location.protocol; // 'http:' or 'https:'
-  const httpsPort = '17057';
-  const httpPort = '15155';
-  
-  if (protocol === 'https:') {
-    return `https://localhost:${httpsPort}`;
-  } else {
-    return `http://localhost:${httpPort}`;
-  }
-};
+// CHỈ dùng đúng giá trị trong .env, không auto-detect nữa
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:15155';
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

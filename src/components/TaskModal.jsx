@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { taskAPI } from '../services/api';
 
 const priorities = [
   { value: 'low', label: 'Thấp', color: 'text-green-600' },
@@ -13,7 +14,13 @@ const statuses = [
   { value: 'completed', label: 'Hoàn thành' },
 ];
 
-export default function TaskModal({ isOpen, onClose, onSubmit, task = null, project = null }) {
+export default function TaskModal({
+  isOpen,
+  onClose,
+  onSubmit,        // callback cho parent (ví dụ reload list)
+  task = null,     // task để edit, nếu null là create
+  project = null,  // project hiện tại, dùng lấy projectId + members
+}) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -25,6 +32,7 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Khi mở modal hoặc đổi task → fill lại form
   useEffect(() => {
     if (task) {
       setFormData({
@@ -32,8 +40,8 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
         description: task.description || '',
         priority: task.priority || 'medium',
         status: task.status || 'pending',
-        assigneeId: task.assignee?.id || '',
-        dueDate: task.dueDate || '',
+        assigneeId: task.assignee || '', // backend đang lưu assignee dạng string
+        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
       });
     } else {
       setFormData({
@@ -48,19 +56,32 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
     setErrors({});
   }, [task, isOpen]);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
 
-    // Validation
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Tiêu đề task là bắt buộc';
     if (!formData.description.trim()) newErrors.description = 'Mô tả task là bắt buộc';
     if (!formData.assigneeId) newErrors.assigneeId = 'Vui lòng chọn người phụ trách';
     if (!formData.dueDate) newErrors.dueDate = 'Ngày hết hạn là bắt buộc';
 
-    // Check if due date is in the future
-    if (formData.dueDate && new Date(formData.dueDate) < new Date()) {
+    if (formData.dueDate && new Date(formData.dueDate) < new Date().setHours(0,0,0,0)) {
       newErrors.dueDate = 'Ngày hết hạn phải sau ngày hiện tại';
     }
 
@@ -69,30 +90,47 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
       return;
     }
 
+    if (!project?.id && !project?.projectId) {
+      alert('Thiếu projectId – cần truyền project hiện tại vào TaskModal');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      await onSubmit(formData);
+
+      const projectId = project.projectId || project.id;
+
+      // Map sang model backend
+      const payload = {
+        taskId: task?.taskId ?? crypto.randomUUID(),
+        projectId,
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,           // 'pending' | 'in-progress' | 'completed'
+        type: task?.type || 'task',
+        priority: formData.priority,       // 'low' | 'medium' | 'high'
+        assignee: formData.assigneeId,     // backend đang dùng string
+        reporter: task?.reporter || '',
+        dueDate: formData.dueDate,         // ISO date (yyyy-mm-dd)
+        startDate: task?.startDate || null,
+        endDate: task?.endDate || null,
+        storyPoints: task?.storyPoints || 0,
+        labels: task?.labels || [],
+      };
+
+      if (task?.taskId) {
+        await taskAPI.updateTask(task.taskId, payload);
+      } else {
+        await taskAPI.createTask(payload);
+      }
+
+      if (onSubmit) onSubmit(payload);
       onClose();
     } catch (error) {
       console.error('Error submitting task:', error);
+      alert('Gửi task lên server thất bại, xem console để biết chi tiết.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
     }
   };
 
@@ -127,7 +165,7 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
           {/* Form */}
           <form onSubmit={handleSubmit} className="px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="space-y-4">
-              {/* Task Title */}
+              {/* Title */}
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700">
                   Tiêu đề task <span className="text-red-500">*</span>
@@ -184,7 +222,7 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
                   } bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                 >
                   <option value="">Chọn người phụ trách</option>
-                  {project?.members.map((member) => (
+                  {project?.members?.map((member) => (
                     <option key={member.id} value={member.id}>
                       {member.name} ({member.role})
                     </option>
@@ -195,9 +233,8 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
                 )}
               </div>
 
-              {/* Priority and Status Row */}
+              {/* Priority + Status */}
               <div className="grid grid-cols-2 gap-4">
-                {/* Priority */}
                 <div>
                   <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
                     Mức độ ưu tiên
@@ -209,15 +246,14 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   >
-                    {priorities.map((priority) => (
-                      <option key={priority.value} value={priority.value}>
-                        {priority.label}
+                    {priorities.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* Status */}
                 <div>
                   <label htmlFor="status" className="block text-sm font-medium text-gray-700">
                     Trạng thái
@@ -229,9 +265,9 @@ export default function TaskModal({ isOpen, onClose, onSubmit, task = null, proj
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   >
-                    {statuses.map((status) => (
-                      <option key={status.value} value={status.value}>
-                        {status.label}
+                    {statuses.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
                       </option>
                     ))}
                   </select>

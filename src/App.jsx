@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskBoard from './pages/TaskBoard';
+import TaskPage from './pages/TaskPage';
 import Navbar from './components/Navbar';
 
 // Protected Route component
@@ -85,15 +86,7 @@ function AppContent() {
           <Route path="projects" element={<ProjectList />} />
           <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="projects/:id/board" element={<TaskBoard />} />
-          <Route
-            path="tasks"
-            element={
-              <div className="text-center py-12">
-                <h2 className="text-2xl font-bold text-gray-900">Tasks Page</h2>
-                <p className="mt-2 text-gray-600">Trang tasks đang được phát triển...</p>
-              </div>
-            }
-          />
+          <Route path="tasks"element={<TaskPage />} />
           <Route
             path="profile"
             element={
