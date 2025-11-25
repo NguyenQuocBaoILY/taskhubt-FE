@@ -2,14 +2,9 @@ import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { taskAPI } from '../services/api';
 
-const priorities = [
-  { value: 'low', label: 'Thấp', color: 'text-green-600' },
-  { value: 'medium', label: 'Trung bình', color: 'text-yellow-600' },
-  { value: 'high', label: 'Cao', color: 'text-red-600' },
-];
-
+// Status = mức độ hoàn thành công việc
 const statuses = [
-  { value: 'pending', label: 'Chờ thực hiện' },
+  { value: 'not-started', label: 'Chưa bắt đầu' },
   { value: 'in-progress', label: 'Đang thực hiện' },
   { value: 'completed', label: 'Hoàn thành' },
 ];
@@ -24,10 +19,10 @@ export default function TaskModal({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'medium',
-    status: 'pending',
-    assigneeId: '',
-    dueDate: '',
+    status: 'not-started',
+    assignee: '',
+    startDate: '',
+    endDate: '',
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,19 +33,19 @@ export default function TaskModal({
       setFormData({
         title: task.title || '',
         description: task.description || '',
-        priority: task.priority || 'medium',
-        status: task.status || 'pending',
-        assigneeId: task.assignee || '', // backend đang lưu assignee dạng string
-        dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        status: task.status || 'not-started',
+        assignee: task.assignee || '',
+        startDate: task.startDate ? task.startDate.split('T')[0] : '',
+        endDate: task.endDate ? task.endDate.split('T')[0] : '',
       });
     } else {
       setFormData({
         title: '',
         description: '',
-        priority: 'medium',
-        status: 'pending',
-        assigneeId: '',
-        dueDate: '',
+        status: 'not-started',
+        assignee: '',
+        startDate: '',
+        endDate: '',
       });
     }
     setErrors({});
@@ -78,11 +73,12 @@ export default function TaskModal({
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Tiêu đề task là bắt buộc';
     if (!formData.description.trim()) newErrors.description = 'Mô tả task là bắt buộc';
-    if (!formData.assigneeId) newErrors.assigneeId = 'Vui lòng chọn người phụ trách';
-    if (!formData.dueDate) newErrors.dueDate = 'Ngày hết hạn là bắt buộc';
+    if (!formData.assignee) newErrors.assignee = 'Vui lòng chọn người phụ trách';
+    if (!formData.startDate) newErrors.startDate = 'Ngày bắt đầu là bắt buộc';
+    if (!formData.endDate) newErrors.endDate = 'Ngày kết thúc là bắt buộc';
 
-    if (formData.dueDate && new Date(formData.dueDate) < new Date().setHours(0,0,0,0)) {
-      newErrors.dueDate = 'Ngày hết hạn phải sau ngày hiện tại';
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      newErrors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -100,22 +96,16 @@ export default function TaskModal({
 
       const projectId = project.projectId || project.id;
 
-      // Map sang model backend
+      // Map đúng model backend mà bạn yêu cầu
       const payload = {
         taskId: task?.taskId ?? crypto.randomUUID(),
         projectId,
         title: formData.title,
         description: formData.description,
-        status: formData.status,           // 'pending' | 'in-progress' | 'completed'
-        type: task?.type || 'task',
-        priority: formData.priority,       // 'low' | 'medium' | 'high'
-        assignee: formData.assigneeId,     // backend đang dùng string
-        reporter: task?.reporter || '',
-        dueDate: formData.dueDate,         // ISO date (yyyy-mm-dd)
-        startDate: task?.startDate || null,
-        endDate: task?.endDate || null,
-        storyPoints: task?.storyPoints || 0,
-        labels: task?.labels || [],
+        status: formData.status,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        assignee: formData.assignee,
       };
 
       if (task?.taskId) {
@@ -213,12 +203,12 @@ export default function TaskModal({
                   Người phụ trách <span className="text-red-500">*</span>
                 </label>
                 <select
-                  id="assigneeId"
-                  name="assigneeId"
-                  value={formData.assigneeId}
+                  id="assignee"
+                  name="assignee"
+                  value={formData.assignee}
                   onChange={handleChange}
                   className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.assigneeId ? 'border-red-300' : 'border-gray-300'
+                    errors.assignee ? 'border-red-300' : 'border-gray-300'
                   } bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                 >
                   <option value="">Chọn người phụ trách</option>
@@ -228,35 +218,16 @@ export default function TaskModal({
                     </option>
                   ))}
                 </select>
-                {errors.assigneeId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.assigneeId}</p>
+                {errors.assignee && (
+                  <p className="mt-1 text-sm text-red-600">{errors.assignee}</p>
                 )}
               </div>
 
-              {/* Priority + Status */}
+              {/* Status + Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-                    Mức độ ưu tiên
-                  </label>
-                  <select
-                    id="priority"
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  >
-                    {priorities.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
                   <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                    Trạng thái
+                    Mức độ hoàn thành
                   </label>
                   <select
                     id="status"
@@ -272,26 +243,44 @@ export default function TaskModal({
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                    Ngày bắt đầu <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    name="startDate"
+                    value={formData.startDate}
+                    onChange={handleChange}
+                    className={`mt-1 block w-full px-3 py-2 border ${
+                      errors.startDate ? 'border-red-300' : 'border-gray-300'
+                    } rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
+                  />
+                  {errors.startDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>
+                  )}
+                </div>
               </div>
 
-              {/* Due Date */}
+              {/* End Date */}
               <div>
-                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
-                  Ngày hết hạn <span className="text-red-500">*</span>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                  Ngày kết thúc <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  id="dueDate"
-                  name="dueDate"
-                  value={formData.dueDate}
+                  id="endDate"
+                  name="endDate"
+                  value={formData.endDate}
                   onChange={handleChange}
-                  min={new Date().toISOString().split('T')[0]}
                   className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.dueDate ? 'border-red-300' : 'border-gray-300'
+                    errors.endDate ? 'border-red-300' : 'border-gray-300'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                 />
-                {errors.dueDate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.dueDate}</p>
+                {errors.endDate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>
                 )}
               </div>
             </div>

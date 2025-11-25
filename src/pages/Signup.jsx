@@ -9,7 +9,6 @@ export default function Signup() {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'member',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -49,7 +48,8 @@ export default function Signup() {
       name: formData.name,
       email: formData.email,
       password: formData.password,
-      role: formData.role,
+      // role bỏ khỏi form, nếu backend cần có thể set mặc định ở đây, ví dụ:
+      // role: 'member',
     });
 
     if (result.success) {
@@ -134,23 +134,6 @@ export default function Signup() {
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                Vai trò
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-              >
-                <option value="member">Thành viên</option>
-                <option value="manager">Quản lý</option>
-                <option value="admin">Quản trị viên</option>
-              </select>
             </div>
 
             <div>
