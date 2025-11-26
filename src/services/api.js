@@ -72,6 +72,7 @@ api.interceptors.response.use(
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('user_name');
             localStorage.removeItem('user_email');
+            localStorage.removeItem('user_info');
             // ✅ Không force redirect, để component tự handle
             // window.location.href = '/login';
           }
@@ -108,225 +109,261 @@ export const userAPI = {
   getCurrentUser: () => api.get('/api/Auth/me'),
 };
 
-// Project API endpoints - Updated to match backend schema
+// Project API endpoints - Updated to use ProjectMembers endpoints
 export const projectAPI = {
-  // Lấy danh sách tất cả projects
-  getProjects: (params = {}) => {
-    const { orgId, status } = params;
-    return api.get('/api/Projects', { 
-      params: { orgId, status }
-    });
-  },
-  
-  // Lấy thông tin chi tiết project
-  getProject: (orgId, projectId) => api.get(`/api/Projects/${orgId}/${projectId}`),
-  
-  // 3. Lấy danh sách thành viên và vai trò trong project
-  // Note: This endpoint might need to be implemented in backend
-  getProjectMembers: (projectId) => {
-    // For now, try to get from project details or implement separate endpoint
-    console.warn('ProjectMembers endpoint not found in swagger, using fallback');
-    return api.get(`/api/ProjectMembers/${projectId}`).catch(() => {
-      // Fallback: return empty array if endpoint not implemented
+  // Get user's projects - transforms membership data to project format
+  getUserProjects: (userId) => {
+    return api.get(`/api/users/${userId}/projects`).then(response => {
+      const memberships = response.data || [];
+      
+      // Transform membership data to project format for UI
+      const projects = memberships.map(membership => ({
+        id: membership.projectId,
+        name: `Project ${membership.projectId}`, // Default name, could be enhanced
+        description: `Project managed by ${membership.username}`,
+        status: membership.memberStatus === 'ACTIVE' ? 'active' : 'inactive',
+        priority: 'medium', // Default priority
+        role: membership.role,
+        memberStatus: membership.memberStatus,
+        joinedAt: membership.joinedAt,
+        createdAt: membership.createdAt,
+        updatedAt: membership.updatedAt,
+        username: membership.username,
+        userId: membership.userId,
+        // Add default tasks structure
+        tasks: {
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          pending: 0
+        },
+        // Add default members array
+        members: [{
+          id: membership.userId,
+          name: membership.username,
+          role: membership.role,
+          status: membership.memberStatus
+        }],
+        // Add lead/owner info
+        lead: {
+          id: membership.userId,
+          name: membership.username
+        }
+      }));
+      
+      console.log('🔄 Transformed memberships to projects:', projects);
+      return { data: projects };
+    }).catch(async (error) => {
+      console.warn('❌ /api/users/{userId}/projects failed:', error);
       return { data: [] };
     });
   },
   
-  // 5. Thay đổi vai trò của user trong project
-  // Note: This endpoint might need to be implemented in backend
-  updateMemberRole: (projectId, userId, roleData) => {
-    console.warn('UpdateMemberRole endpoint not found in swagger, using fallback');
-    return api.patch(`/api/ProjectMembers/${projectId}/${userId}`, roleData).catch(() => {
-      // Fallback: simulate success if endpoint not implemented
-      return { data: { ...roleData, userId } };
-    });
-  },
-  
-  // 4. Lấy danh sách tasks trong project - Updated to match Task API
-  getProjectTasks: (projectId) => api.get('/api/Task', {
-    params: { projectId }
-  }),
-  
-  // 6. Tạo task mới trong project - Use existing Task API
-  createProjectTask: (projectId, taskData) => {
-    const taskPayload = {
-      projectId: projectId,
-      title: taskData.title,
-      description: taskData.description,
-      status: taskData.status || 'todo',
-      type: taskData.type || 'task',
-      priority: taskData.priority || 'medium',
-      assignee: taskData.assignee || taskData.assignee_id,
-      reporter: taskData.reporter || taskData.created_by,
-      dueDate: taskData.dueDate || taskData.due_date,
-      startDate: taskData.startDate,
-      endDate: taskData.endDate,
-      storyPoints: taskData.storyPoints || 0,
-      labels: taskData.labels || []
-    };
-    return api.post('/api/Task', taskPayload);
-  },
-  
-  // Tạo project mới - Updated to match backend schema
-  createProject: (projectData) => {
-    const projectPayload = {
-      orgId: projectData.orgId,
-      name: projectData.name,
-      key: projectData.key || projectData.name.toUpperCase().replace(/\s+/g, ''),
-      description: projectData.description,
-      status: projectData.status || 'active',
-      visibility: projectData.visibility || 'private',
-      ownerUserId: projectData.ownerUserId,
-      avatar: projectData.avatar || '',
-    };
-    return api.post('/api/Projects', projectPayload);
-  },
-  
-  // Cập nhật project - Updated to match backend schema
-  updateProject: (orgId, projectId, projectData) => 
-    api.put(`/api/Projects/${orgId}/${projectId}`, projectData),
-  
-  // Xóa project - Updated to match backend schema
-  deleteProject: (orgId, projectId) => 
-    api.delete(`/api/Projects/${orgId}/${projectId}`),
-  
-  // Thêm thành viên vào project - Placeholder for future implementation
-  addMember: (projectId, memberData) => {
-    console.warn('AddMember endpoint not implemented in backend yet');
-    return Promise.resolve({ data: memberData });
-  },
-  
-  // Xóa thành viên khỏi project - Placeholder for future implementation
-  removeMember: (projectId, userId) => {
-    console.warn('RemoveMember endpoint not implemented in backend yet');
-    return Promise.resolve({ data: { success: true } });
-  },
-};
-
-// Task API endpoints - Updated to match backend Task schema
-export const taskAPI = {
-  // Get tasks with optional filters
-  getTasks: (params = {}) => {
-    const { projectId, status } = params;
-    return api.get('/api/Task', {
-      params: { projectId, status }
-    });
-  },
-
-  // 7e. Cập nhật task - Updated to match backend schema
-  updateTask: (taskId, taskData) => {
-    const taskPayload = {
-      taskId: taskId,
-      projectId: taskData.projectId,
-      title: taskData.title,
-      description: taskData.description,
-      status: taskData.status,
-      type: taskData.type || 'task',
-      priority: taskData.priority,
-      assignee: taskData.assignee || taskData.assignee_id,
-      reporter: taskData.reporter || taskData.created_by,
-      dueDate: taskData.dueDate || taskData.due_date,
-      startDate: taskData.startDate,
-      endDate: taskData.endDate,
-      storyPoints: taskData.storyPoints || 0,
-      labels: taskData.labels || []
-    };
-    return api.put(`/api/Task/${taskId}`, taskPayload);
-  },
-  
-  // 7f. Xóa task - Updated to match backend schema
-  deleteTask: (taskId, projectId = null) => {
-    const params = projectId ? { projectId } : {};
-    return api.delete(`/api/Task/${taskId}`, { params });
-  },
-  
-  // Lấy thông tin chi tiết task
-  getTask: (taskId) => api.get(`/api/Task/${taskId}`),
-  
-  // Tạo task mới - Updated to match backend schema
-  createTask: (taskData) => {
-    const taskPayload = {
-      projectId: taskData.projectId,
-      title: taskData.title,
-      description: taskData.description,
-      status: taskData.status || 'todo',
-      type: taskData.type || 'task',
-      priority: taskData.priority || 'medium',
-      assignee: taskData.assignee || taskData.assignee_id,
-      reporter: taskData.reporter || taskData.created_by,
-      dueDate: taskData.dueDate || taskData.due_date,
-      startDate: taskData.startDate,
-      endDate: taskData.endDate,
-      storyPoints: taskData.storyPoints || 0,
-      labels: taskData.labels || []
-    };
-    return api.post('/api/Task', taskPayload);
-  },
-  
-  // Cập nhật trạng thái task
-  updateTaskStatus: (taskId, status) => {
-    // Use the main update method but only update status
-    return api.put(`/api/Task/${taskId}`, { status });
-  },
-  
-  // Assign task cho user
-  assignTask: (taskId, userId) => {
-    // Use the main update method but only update assignee
-    return api.put(`/api/Task/${taskId}`, { assignee: userId });
-  },
-};
-
-// ✅ Dashboard API - sử dụng real API endpoints
-export const dashboardAPI = {
-  getStats: async () => {
-    try {
-      // Gọi API thống kê thực tế
-      const response = await api.get('/api/dashboard/stats');
-      return {
-        data: response.data
-      };
-    } catch (error) {
-      console.warn('⚠️ Dashboard stats API failed, using fallback calculation');
+  // Get specific project details - get from project members
+  getProject: (projectId) => {
+    // Get project info by fetching its members
+    return api.get(`/api/projects/${projectId}/members`).then(response => {
+      const members = response.data || [];
       
-      // Fallback: tính stats từ tasks data nếu API dashboard chưa có
-      try {
-        const tasksResponse = await taskAPI.getTasks();
-        const tasks = tasksResponse.data || [];
-        
-        return {
-          data: {
-            totalProjects: 0, // Will be updated when project API is available
-            totalTasks: tasks.length,
-            pendingTasks: tasks.filter(t => ['pending', 'todo'].includes(t.status?.toLowerCase())).length,
-            inProgressTasks: tasks.filter(t => ['in-progress', 'inprogress'].includes(t.status?.toLowerCase())).length,
-            completedTasks: tasks.filter(t => ['completed', 'done'].includes(t.status?.toLowerCase())).length,
-            totalMembers: 0, // Will be updated when user API is available
-            overdueeTasks: 0, // Will be calculated when due dates are available
-          }
-        };
-      } catch (fallbackError) {
-        console.error('❌ Fallback stats calculation failed:', fallbackError);
-        throw new Error('Unable to load dashboard statistics');
+      if (members.length === 0) {
+        throw new Error('Project not found or no members');
       }
-    }
+      
+      // Find owner/manager
+      const owner = members.find(member => member.role === 'owner' || member.role === 'manager') || members[0];
+      
+      // Construct project from members data
+      const project = {
+        id: projectId,
+        name: `Project ${projectId}`,
+        description: `Project with ${members.length} member(s)`,
+        status: 'active',
+        priority: 'medium',
+        createdAt: members[0]?.createdAt,
+        updatedAt: members[0]?.updatedAt,
+        // Project members
+        members: members.map(member => ({
+          id: member.userId,
+          name: member.username,
+          role: member.role,
+          status: member.memberStatus,
+          joinedAt: member.joinedAt,
+          email: member.email || `${member.username}@example.com`
+        })),
+        // Project lead/owner
+        lead: {
+          id: owner.userId,
+          name: owner.username,
+          role: owner.role
+        },
+        // Default tasks structure
+        tasks: {
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          pending: 0
+        }
+      };
+      
+      console.log('🔄 Constructed project from members:', project);
+      return { data: project };
+    }).catch(error => {
+      console.error('❌ Cannot get project details:', error);
+      throw error;
+    });
   },
   
-  getActivities: async () => {
-    try {
-      // Gọi API activities thực tế
-      const response = await api.get('/api/dashboard/activities');
+  // Project CRUD operations - Create project by adding user as member
+  createProject: (projectData) => {
+    // Get userID from stored user info (from login response)
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    const userId = userInfo.userId;
+    
+    console.log('📝 Creating project with payload:', {
+      projectData,
+      userId,
+      userInfo
+    });
+    
+    // Since backend doesn't have POST /api/projects, we create project by:
+    // 1. Generate a projectId (could be based on name or timestamp)
+    // 2. Add user as owner/manager of that project
+    const projectId = projectData.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+    
+    const memberPayload = {
+      userId: userId,
+      role: 'owner' // or 'manager' - user who creates becomes owner
+    };
+    
+    console.log('📤 Creating project by adding member:', { projectId, memberPayload });
+    
+    // Create project by adding creator as owner
+    return api.post(`/api/projects/${projectId}/members`, memberPayload).then(response => {
+      // Transform response to match expected project format
       return {
-        data: response.data
+        data: {
+          id: projectId,
+          name: projectData.name,
+          description: projectData.description,
+          status: projectData.status || 'ACTIVE',
+          priority: projectData.priority || 'medium',
+          ownerId: userId,
+          members: [response.data],
+          createdAt: new Date().toISOString(),
+          ...response.data
+        }
       };
-    } catch (error) {
-      console.warn('⚠️ Dashboard activities API failed, using empty state');
-      
-      // Fallback: trả về array rỗng nếu API activities chưa có
-      return {
-        data: []
-      };
-    }
+    });
+  },
+  
+  updateProject: (projectId, data) => api.put(`/api/projects/${projectId}`, data),
+  deleteProject: (projectId) => api.delete(`/api/projects/${projectId}`),
+  
+  // Project members management using ProjectMembers endpoints
+  getProjectMembers: (projectId) => api.get(`/api/projects/${projectId}/members`),
+  
+  // Get specific member info
+  getProjectMember: (projectId, userId) => api.get(`/api/projects/${projectId}/members/${userId}`),
+  
+  // Add member to project
+  addProjectMember: (projectId, memberData) => {
+    const payload = {
+      userId: memberData.userId,
+      role: memberData.role || 'member' // default to 'member' role
+    };
+    return api.post(`/api/projects/${projectId}/members`, payload);
+  },
+  
+  // Update member role and status
+  updateMemberRole: (projectId, userId, roleData) => {
+    const payload = {
+      role: roleData.role,
+      memberStatus: roleData.memberStatus || 'ACTIVE'
+    };
+    return api.patch(`/api/projects/${projectId}/members/${userId}`, payload);
+  },
+  
+  // Remove member from project
+  removeProjectMember: (projectId, userId) => {
+    return api.delete(`/api/projects/${projectId}/members/${userId}`);
   },
 };
 
-export default api;
+// Task API endpoints - Optimized for specific project needs
+export const taskAPI = {
+  // Get tasks for a specific project only (to reduce unnecessary API calls)
+  getProjectTasks: (projectId, params = {}) => {
+    return api.get(`/api/projects/${projectId}/tasks`, { params });
+  },
+
+  // Get specific task details
+  getTask: (taskId) => api.get(`/api/tasks/${taskId}`),
+  
+  // Create task in project
+  createTask: (projectId, taskData) => {
+    const taskPayload = {
+      title: taskData.title,
+      description: taskData.description,
+      status: taskData.status || 'pending',
+      priority: taskData.priority || 'medium',
+      assigneeId: taskData.assigneeId,
+      dueDate: taskData.dueDate,
+      // Add other fields as needed
+    };
+    return api.post(`/api/projects/${projectId}/tasks`, taskPayload);
+  },
+  
+  // Update task
+  updateTask: (taskId, taskData) => {
+    return api.put(`/api/tasks/${taskId}`, taskData);
+  },
+  
+  // Delete task
+  deleteTask: (taskId) => {
+    return api.delete(`/api/tasks/${taskId}`);
+  },
+};
+
+// Dashboard API for getting summary statistics
+export const dashboardAPI = {
+  // 8. Dashboard data - statistics summary
+  getSummary: (userId, params = {}) => {
+    // Fallback for dashboard data if specific endpoint is not available
+    return Promise.all([
+      userAPI.getUserProjects(userId).catch(() => ({ data: [] }))
+    ]).then(([projectsRes]) => {
+      const projects = projectsRes.data || [];
+      
+      // Calculate summary from available data
+      const summary = {
+        totalProjects: projects.length,
+        activeProjects: projects.filter(p => p.status === 'active').length,
+        completedProjects: projects.filter(p => p.status === 'completed').length,
+        totalTasks: 0,
+        completedTasks: 0,
+        pendingTasks: 0,
+        overdueTasks: 0,
+        recentProjects: projects.slice(0, 5),
+        recentTasks: [] // Will need separate task endpoint to get this
+      };
+      
+      return { data: summary };
+    }).catch(error => {
+      console.warn('Dashboard summary calculation failed:', error);
+      // Return default empty summary
+      return {
+        data: {
+          totalProjects: 0,
+          activeProjects: 0, 
+          completedProjects: 0,
+          totalTasks: 0,
+          completedTasks: 0,
+          pendingTasks: 0,
+          overdueTasks: 0,
+          recentProjects: [],
+          recentTasks: []
+        }
+      };
+    });
+  }
+};

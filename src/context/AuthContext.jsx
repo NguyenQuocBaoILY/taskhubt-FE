@@ -142,6 +142,7 @@ export function AuthProvider({ children }) {
               localStorage.removeItem('refresh_token');
               localStorage.removeItem('user_name');
               localStorage.removeItem('user_email');
+              localStorage.removeItem('user_info');
               dispatch({ type: AUTH_ACTIONS.LOGOUT });
             } else {
               console.log('📡 Network error, keeping user logged in with cached info');
@@ -188,6 +189,16 @@ export function AuthProvider({ children }) {
       localStorage.setItem('refresh_token', refresh_token);
       localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
+      
+      // Store complete user info for API usage (including userId)
+      localStorage.setItem('user_info', JSON.stringify({
+        userId: user.userId,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        status: user.status
+      }));
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -306,6 +317,7 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user_name');
       localStorage.removeItem('user_email');
+      localStorage.removeItem('user_info');
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
       toast.success('Đăng xuất thành công!');
     }

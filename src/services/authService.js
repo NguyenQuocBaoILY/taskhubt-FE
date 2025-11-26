@@ -14,13 +14,23 @@ console.log('🌐 Auth API Base URL:', authAPI.defaults.baseURL);
 
 // Authentication API endpoints - Updated to match backend schema
 export const authService = {
-  // Login user
+  // Login user - Updated to match backend response format
   login: async (emailOrUsername, password) => {
     const response = await authAPI.post('/api/Auth/login', {
       usernameOrEmail: emailOrUsername,
       password: password,
     });
-    return response.data;
+    
+    // Backend returns: { accessToken, refreshToken, user, message }
+    // Need to transform to match AuthContext expectations
+    const { accessToken, refreshToken, user, message } = response.data;
+    
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: user,
+      message: message
+    };
   },
 
   // Register user

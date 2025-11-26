@@ -15,76 +15,6 @@ import ProjectModal from '../components/ProjectModal';
 import { projectAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const mockProjects = [
-  {
-    id: 1,
-    name: 'E-commerce Platform',
-    key: 'ECOM',
-    description: 'Xây dựng nền tảng thương mại điện tử với React và Node.js',
-    status: 'active',
-    priority: 'high',
-    lead: { id: 1, name: 'Nguyễn Văn A', avatar: null },
-    members: [
-      { id: 1, name: 'Nguyễn Văn A', avatar: null },
-      { id: 2, name: 'Trần Thị B', avatar: null },
-      { id: 3, name: 'Lê Văn C', avatar: null },
-    ],
-    tasks: {
-      total: 45,
-      completed: 12,
-      inProgress: 18,
-      pending: 15,
-    },
-    createdAt: '2024-01-15',
-    updatedAt: '2024-11-10',
-    deadline: '2024-12-31',
-  },
-  {
-    id: 2,
-    name: 'Mobile Banking App',
-    key: 'BANK',
-    description: 'Ứng dụng ngân hàng di động với bảo mật cao',
-    status: 'active',
-    priority: 'high',
-    lead: { id: 2, name: 'Trần Thị B', avatar: null },
-    members: [
-      { id: 2, name: 'Trần Thị B', avatar: null },
-      { id: 4, name: 'Phạm Văn D', avatar: null },
-    ],
-    tasks: {
-      total: 32,
-      completed: 8,
-      inProgress: 12,
-      pending: 12,
-    },
-    createdAt: '2024-02-01',
-    updatedAt: '2024-11-09',
-    deadline: '2024-11-30',
-  },
-  {
-    id: 3,
-    name: 'HR Management System',
-    key: 'HRMS',
-    description: 'Hệ thống quản lý nhân sự tích hợp AI',
-    status: 'planning',
-    priority: 'medium',
-    lead: { id: 3, name: 'Lê Văn C', avatar: null },
-    members: [
-      { id: 3, name: 'Lê Văn C', avatar: null },
-      { id: 5, name: 'Hoàng Thị E', avatar: null },
-    ],
-    tasks: {
-      total: 18,
-      completed: 2,
-      inProgress: 6,
-      pending: 10,
-    },
-    createdAt: '2024-03-10',
-    updatedAt: '2024-11-08',
-    deadline: '2025-01-15',
-  },
-];
-
 const statusConfig = {
   active: { label: 'Đang thực hiện', color: 'bg-green-100 text-green-800' },
   planning: { label: 'Lên kế hoạch', color: 'bg-yellow-100 text-yellow-800' },
@@ -114,37 +44,41 @@ export default function ProjectList() {
 
   const fetchProjects = async () => {
     try {
-      // TODO: backend phải trả về mảng project
-      // const res = await projectAPI.getProjects();
-      // const list = res.data || []; // hoặc res.data.data tùy backend
-      // setProjects(list);
+      console.log('📁 Loading projects from API...');
       
-      // Tạm thời dùng mock data cho đến khi API ready
-      console.log('📁 Loading projects from mock data...');
-      setProjects(mockProjects);
+      // Get userId from stored user info
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = userInfo.userId;
       
-      // Uncomment phần dưới khi API ready:
-      // console.log('📁 Loading projects from API...');
-      // const res = await projectAPI.getProjects();
-      // const list = res.data || [];
-      // setProjects(list);
-      // console.log('✅ Projects loaded from API:', list.length);
+      if (!userId) {
+        throw new Error('No userId found in user_info');
+      }
+      
+      const res = await projectAPI.getUserProjects(userId);
+      const projects = res.data || [];
+      
+      setProjects(projects);
+      console.log('✅ Projects loaded from API:', projects.length);
     } catch (error) {
       console.error('❌ Lỗi tải danh sách dự án:', error);
-      // Fallback to mock data if API fails
-      setProjects(mockProjects);
-      toast.error('Sử dụng dữ liệu demo. API chưa sẵn sàng.');
+      // Set empty array on error
+      setProjects([]);
+      toast.error('Không thể tải danh sách dự án. Vui lòng thử lại.');
     }
   };
 
-  // Initialize with mock data immediately for better UX
+  // Load projects from API when component mounts
   useEffect(() => {
-    setProjects(mockProjects);
-  }, []);
-
-  // Then try to load from API
-  useEffect(() => {
-    fetchProjects();
+    // Get userId from stored user info
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    const userId = userInfo.userId;
+    
+    if (userId) {
+      fetchProjects();
+    } else {
+      console.warn('⚠️ No userId found in user_info');
+      toast.error('Vui lòng đăng nhập lại để xem dự án.');
+    }
   }, []);
 
   const filterProjects = useCallback(() => {
@@ -175,37 +109,38 @@ export default function ProjectList() {
 
   const handleCreateProject = async (projectData) => {
     try {
-      // TODO: backend create project
-      // const res = await projectAPI.createProject(projectData);
-      // const created = res.data; // hoặc res.data.data
-      // setProjects([created, ...projects]);
-
-      // Tạm thời (nếu backend chưa sẵn sàng) để test UI
-      const newProject = {
-        id: Date.now(),
-        ...projectData,
-        key: projectData.name.substring(0, 4).toUpperCase(),
-        lead: user,
-        members: [user],
-        tasks: { total: 0, completed: 0, inProgress: 0, pending: 0 },
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
+      console.log('📝 Creating project via API...');
+      console.log('📋 Project data:', projectData);
+      
+      const res = await projectAPI.createProject(projectData);
+      const newProject = res.data;
+      
+      console.log('✅ Project created successfully:', newProject);
       setProjects([newProject, ...projects]);
-
       toast.success('Tạo dự án thành công!');
       setShowCreateModal(false);
       
-      // Uncomment phần dưới khi API ready:
-      // console.log('📝 Creating project via API...');
-      // const res = await projectAPI.createProject(projectData);
-      // const created = res.data;
-      // setProjects([created, ...projects]);
-      // toast.success('Tạo dự án thành công!');
-      
+      // Refresh projects list to get updated data
+      fetchProjects();
     } catch (error) {
       console.error('❌ Lỗi tạo dự án:', error);
-      toast.error('Lỗi tạo dự án');
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+        payload: error.config?.data
+      });
+      
+      let errorMessage = 'Không thể tạo dự án. Vui lòng thử lại.';
+      if (error.response?.status === 500) {
+        errorMessage = 'Lỗi server. Có thể endpoint chưa được implement.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Endpoint không tồn tại. Cần kiểm tra API documentation.';
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -215,7 +150,9 @@ export default function ProjectList() {
   };
 
   const getProgressPercentage = (tasks) => {
-    if (tasks.total === 0) return 0;
+    if (!tasks || typeof tasks !== 'object' || tasks.total === undefined || tasks.total === 0) {
+      return 0;
+    }
     return Math.round((tasks.completed / tasks.total) * 100);
   };
 

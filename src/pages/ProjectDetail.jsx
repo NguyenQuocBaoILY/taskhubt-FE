@@ -16,93 +16,8 @@ import {
 import { useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
 import TaskModal from '../components/TaskModal';
-import { taskAPI } from '../services/api';
+import { projectAPI, taskAPI } from '../services/api';
 import toast from 'react-hot-toast';
-//import { projectAPI } from '../services/api'; // TODO: sau này có thể thêm projectAPI
-
-// Mock data - same as in ProjectList but with more details
-const mockProject = {
-  id: 1,
-  name: 'E-commerce Platform',
-  key: 'ECOM',
-  description: 'Xây dựng nền tảng thương mại điện tử với React và Node.js. Dự án bao gồm frontend customer, admin dashboard, API backend và payment integration.',
-  status: 'active',
-  priority: 'high',
-  lead: { id: 1, name: 'Nguyễn Văn A', email: 'nguyen.van.a@company.com', avatar: null },
-  members: [
-    { id: 1, name: 'Nguyễn Văn A', email: 'nguyen.van.a@company.com', role: 'Project Lead', avatar: null },
-    { id: 2, name: 'Trần Thị B', email: 'tran.thi.b@company.com', role: 'Frontend Developer', avatar: null },
-    { id: 3, name: 'Lê Văn C', email: 'le.van.c@company.com', role: 'Backend Developer', avatar: null },
-    { id: 4, name: 'Phạm Văn D', email: 'pham.van.d@company.com', role: 'UI/UX Designer', avatar: null },
-  ],
-  tasks: {
-    total: 45,
-    completed: 12,
-    inProgress: 18,
-    pending: 15,
-  },
-  createdAt: '2024-01-15',
-  updatedAt: '2024-11-10',
-  deadline: '2024-12-31',
-};
-
-const mockTasks = [
-  {
-    id: 1,
-    title: 'Setup project structure',
-    description: 'Initialize React project with Vite and setup folder structure',
-    status: 'completed',
-    priority: 'high',
-    assignee: { id: 2, name: 'Trần Thị B' },
-    createdAt: '2024-01-16',
-    updatedAt: '2024-01-20',
-    dueDate: '2024-01-25',
-  },
-  {
-    id: 2,
-    title: 'Design user authentication flow',
-    description: 'Create wireframes and mockups for login/register pages',
-    status: 'completed',
-    priority: 'high',
-    assignee: { id: 4, name: 'Phạm Văn D' },
-    createdAt: '2024-01-17',
-    updatedAt: '2024-01-22',
-    dueDate: '2024-01-30',
-  },
-  {
-    id: 3,
-    title: 'Implement user authentication API',
-    description: 'Build authentication endpoints with JWT tokens',
-    status: 'in-progress',
-    priority: 'high',
-    assignee: { id: 3, name: 'Lê Văn C' },
-    createdAt: '2024-01-20',
-    updatedAt: '2024-11-10',
-    dueDate: '2024-11-15',
-  },
-  {
-    id: 4,
-    title: 'Create product catalog UI',
-    description: 'Build product listing and detail pages',
-    status: 'in-progress',
-    priority: 'medium',
-    assignee: { id: 2, name: 'Trần Thị B' },
-    createdAt: '2024-02-01',
-    updatedAt: '2024-11-08',
-    dueDate: '2024-11-20',
-  },
-  {
-    id: 5,
-    title: 'Integration with payment gateway',
-    description: 'Integrate Stripe/PayPal payment processing',
-    status: 'pending',
-    priority: 'high',
-    assignee: { id: 3, name: 'Lê Văn C' },
-    createdAt: '2024-02-15',
-    updatedAt: '2024-02-15',
-    dueDate: '2024-12-01',
-  },
-];
 
 const statusConfig = {
   active: { label: 'Đang thực hiện', color: 'bg-green-100 text-green-800' },
@@ -137,83 +52,81 @@ export default function ProjectDetail() {
   useEffect(() => {
     const fetchProjectDetail = async () => {
       try {
-        // TODO: API PROJECT
-        // Khi có API project, thay mockProject bằng dữ liệu từ backend:
-        // const resProject = await projectAPI.getProject(id);
-        // const projectFromApi = resProject.data; // hoặc resProject.data.data tùy backend
-        // setProject(projectFromApi);
-        // setCurrentProject(projectFromApi);
-
-        // Tạm thời vẫn dùng mock project cho UI
-        const projectFromMock = mockProject;
-        setProject(projectFromMock);
-        setCurrentProject(projectFromMock);
-
-        // API TASK: lấy danh sách task theo projectId từ backend
-        try {
-          const resTasks = await taskAPI.getTasks({ projectId: id });
-          const tasksFromApi = resTasks.data || [];
-          setTasks(tasksFromApi);
-        } catch (taskError) {
-          console.warn('⚠️ Cannot load tasks from API, using mock data:', taskError.message);
-          // Fallback to mock tasks if API fails
-          setTasks(mockTasks);
-        }
+        console.log('📁 Loading project details from API...');
+        
+        // Load project details
+        const projectRes = await projectAPI.getProject(id);
+        const project = projectRes.data;
+        setProject(project);
+        setCurrentProject(project);
+        
+        console.log('✅ Project details loaded from API');
       } catch (error) {
-        console.error('Lỗi tải chi tiết dự án:', error);
-        toast.error('Lỗi tải thông tin dự án');
-        // Don't navigate away, just use mock data
-        setProject(mockProject);
-        setCurrentProject(mockProject);
-        setTasks(mockTasks);
+        console.error('❌ Lỗi tải chi tiết dự án:', error);
+        toast.error('Không thể tải thông tin dự án.');
+        // Navigate back to projects list on error
+        navigate('/projects');
       }
     };
 
     if (id) {
       fetchProjectDetail();
     }
-  }, [id, setCurrentProject]); // Add proper dependencies
+  }, [id, setCurrentProject, navigate]);
+
+  // Load tasks only when tasks tab is active to avoid unnecessary API calls
+  const fetchProjectTasks = async () => {
+    try {
+      console.log('📋 Loading project tasks...');
+      const tasksRes = await taskAPI.getProjectTasks(id);
+      const tasks = tasksRes.data || [];
+      setTasks(tasks);
+      console.log('✅ Tasks loaded:', tasks.length);
+    } catch (error) {
+      console.warn('⚠️ Cannot load tasks from API:', error.message);
+      setTasks([]); // Set empty array instead of mock data
+      toast.error('Không thể tải danh sách task.');
+    }
+  };
+
+  // Load tasks only when user switches to tasks tab
+  useEffect(() => {
+    if (activeTab === 'tasks' && id) {
+      fetchProjectTasks();
+    }
+  }, [activeTab, id]);
 
   const handleUpdateProject = async (projectData) => {
     try {
-      // TODO: API PROJECT UPDATE
-      // Khi có API project update:
-      // const res = await projectAPI.updateProject(id, projectData);
-      // const updatedProjectFromApi = res.data; // hoặc res.data.data
-      // setProject(updatedProjectFromApi);
-      // setCurrentProject(updatedProjectFromApi);
-
-      const updatedProject = { ...project, ...projectData };
+      console.log('📝 Updating project via API...');
+      const res = await projectAPI.updateProject(id, projectData);
+      const updatedProject = res.data;
+      
       setProject(updatedProject);
       setCurrentProject(updatedProject);
       toast.success('Cập nhật dự án thành công!');
       setShowEditModal(false);
-    } catch {
-      toast.error('Lỗi cập nhật dự án');
+    } catch (error) {
+      console.error('❌ Lỗi cập nhật dự án:', error);
+      toast.error('Không thể cập nhật dự án. Vui lòng thử lại.');
     }
   };
 
   const handleCreateTask = async (taskData) => {
     try {
-      // TODO: API TASK CREATE
-      // Gợi ý body khi gọi backend:
-      // const payload = { ...taskData, projectId: id };
-      // const res = await taskAPI.createTask(payload);
-      // const createdTask = res.data; // hoặc res.data.data
-      // setTasks([createdTask, ...tasks]);
-
-      // Tạm thời: thêm task mới vào state để test UI
-      const newTask = {
-        id: Date.now(),
-        ...taskData,
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
+      console.log('📝 Creating task via API...');
+      const res = await taskAPI.createTask(id, taskData);
+      const newTask = res.data;
+      
       setTasks([newTask, ...tasks]);
       toast.success('Tạo task thành công!');
       setShowTaskModal(false);
-    } catch {
-      toast.error('Lỗi tạo task');
+      
+      // Refresh tasks list
+      fetchProjectTasks();
+    } catch (error) {
+      console.error('❌ Lỗi tạo task:', error);
+      toast.error('Không thể tạo task. Vui lòng thử lại.');
     }
   };
 
