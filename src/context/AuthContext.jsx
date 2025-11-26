@@ -8,11 +8,13 @@ const initialState = {
   token: localStorage.getItem('access_token'),
   isLoading: true,
   isAuthenticated: false,
+  hasInitialized: false,
   error: null,
 };
 
 // Action types
 const AUTH_ACTIONS = {
+  INIT_FROM_STORAGE: 'INIT_FROM_STORAGE',
   LOGIN_START: 'LOGIN_START',
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGIN_FAILURE: 'LOGIN_FAILURE',
@@ -25,6 +27,16 @@ const AUTH_ACTIONS = {
 // Reducer
 function authReducer(state, action) {
   switch (action.type) {
+    case AUTH_ACTIONS.INIT_FROM_STORAGE:
+      return {
+        ...state,
+        isLoading: false,
+        hasInitialized: true,
+        isAuthenticated: action.payload.hasToken,
+        user: action.payload.user,
+        token: action.payload.token,
+        error: null,
+      };
     case AUTH_ACTIONS.LOGIN_START:
       return {
         ...state,
@@ -85,43 +97,72 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Check if user is authenticated on app start
+  // Initialize authentication state immediately from localStorage
   useEffect(() => {
-    const checkAuth = async () => {
+    const initializeAuth = () => {
+      console.log('🔐 Khởi tạo authentication từ localStorage...');
+      
       const token = localStorage.getItem('access_token');
-      if (token) {
-        try {
-          console.log('🔍 Verifying token with API...');
-          
-          // Verify token with real API
-          const user = await authService.getCurrentUser();
-          
-          dispatch({
-            type: AUTH_ACTIONS.LOGIN_SUCCESS,
-            payload: {
-              user,
-              token,
-            },
+      const userName = localStorage.getItem('user_name');
+      const userEmail = localStorage.getItem('user_email');
+      
+      if (token && userName) {
+        // ✅ CÓ TOKEN → SET AUTHENTICATED NGAY để tránh redirect
+        console.log('✅ Tìm thấy token, đặt user authenticated ngay lập tức');
+        const cachedUser = {
+          username: userName,
+          name: userName,
+          email: userEmail
+        };
+        
+        dispatch({
+          type: AUTH_ACTIONS.INIT_FROM_STORAGE,
+          payload: {
+            hasToken: true,
+            user: cachedUser,
+            token
+          }
+        });
+        
+        // ✅ Verify token với API trong background (không block UI)
+        authService.getCurrentUser()
+          .then(user => {
+            console.log('✅ Token verified với API:', user.name || user.username);
+            dispatch({
+              type: AUTH_ACTIONS.SET_USER,
+              payload: user
+            });
+          })
+          .catch(error => {
+            console.warn('⚠️ Token verification failed:', error.message);
+            // Chỉ logout nếu là 401/403, không logout nếu network error
+            if (error.response?.status === 401 || error.response?.status === 403) {
+              console.log('❌ Token invalid, logging out...');
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('user_name');
+              localStorage.removeItem('user_email');
+              dispatch({ type: AUTH_ACTIONS.LOGOUT });
+            } else {
+              console.log('📡 Network error, keeping user logged in with cached info');
+            }
           });
           
-          console.log('✅ Token verified, user logged in:', user.name);
-        } catch (error) {
-          console.warn('⚠️ Token invalid, logging out:', error.message);
-          
-          // Token is invalid, remove it
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user_name');
-          localStorage.removeItem('user_email');
-          dispatch({ type: AUTH_ACTIONS.LOGOUT });
-        }
       } else {
-        console.log('ℹ️ No token found, user not logged in');
-        dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+        // ✅ KHÔNG CÓ TOKEN → Set not authenticated
+        console.log('❌ Không tìm thấy token, user chưa login');
+        dispatch({
+          type: AUTH_ACTIONS.INIT_FROM_STORAGE,
+          payload: {
+            hasToken: false,
+            user: null,
+            token: null
+          }
+        });
       }
     };
 
-    checkAuth();
+    initializeAuth();
   }, []);
 
   // Login function
@@ -145,7 +186,7 @@ export function AuthProvider({ children }) {
       // Store tokens and user info
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name);
+      localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
 
       dispatch({
@@ -156,7 +197,7 @@ export function AuthProvider({ children }) {
         },
       });
 
-      console.log('✅ Login successful:', user.name);
+      console.log('✅ Login successful:', user.name || user.username);
       toast.success('Đăng nhập thành công!');
       return { success: true };
     } catch (error) {
@@ -206,7 +247,7 @@ export function AuthProvider({ children }) {
       // Store tokens and user info
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name);
+      localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
 
       dispatch({
@@ -217,7 +258,7 @@ export function AuthProvider({ children }) {
         },
       });
 
-      console.log('✅ Signup successful:', user.name);
+      console.log('✅ Signup successful:', user.name || user.username);
       toast.success('Đăng ký thành công!');
       return { success: true };
     } catch (error) {

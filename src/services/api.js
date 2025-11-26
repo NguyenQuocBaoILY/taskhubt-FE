@@ -64,22 +64,27 @@ api.interceptors.response.use(
         } catch (refreshError) {
           console.error('❌ Token refresh failed:', refreshError);
           
-          // Only redirect to login if refresh explicitly fails with 401/403
+          // ✅ Chỉ clear tokens, không force redirect
+          // Để AuthContext xử lý authentication state
           if (refreshError.response?.status === 401 || refreshError.response?.status === 403) {
-            console.log('🚑 Refresh token invalid, redirecting to login...');
+            console.log('🧼 Refresh token invalid, clearing tokens...');
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             localStorage.removeItem('user_name');
             localStorage.removeItem('user_email');
-            window.location.href = '/login';
+            // ✅ Không force redirect, để component tự handle
+            // window.location.href = '/login';
           }
         }
       } else {
         console.log('⚠️ No refresh token available');
-        // Don't automatically redirect - let component handle authentication state
-        // localStorage.removeItem('access_token');
-        // window.location.href = '/login';
+        // ✅ Don't automatically redirect - let component handle authentication state
       }
+    }
+    
+    // ✅ Nếu là network error, không làm gì cả
+    if (!error.response) {
+      console.log('📡 Network error or server unavailable');
     }
     
     return Promise.reject(error);

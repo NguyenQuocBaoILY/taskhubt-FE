@@ -14,31 +14,50 @@ import Navbar from './components/Navbar';
 
 // Protected Route component
 function ProtectedRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasInitialized } = useAuth();
 
-  if (isLoading) {
+  console.log('🛡️ ProtectedRoute check:', { 
+    isAuthenticated, 
+    isLoading, 
+    hasInitialized,
+    currentPath: window.location.pathname 
+  });
+
+  // ✅ CHỈ show loading khi chưa khởi tạo hoặc đang xử lý
+  if (!hasInitialized || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {!hasInitialized ? 'Đang khởi tạo ứng dụng...' : 'Đang xử lý...'}
+          </p>
+        </div>
       </div>
     );
   }
 
+  // ✅ CHỈ redirect khi đã initialized VÀ không authenticated
   if (!isAuthenticated) {
+    console.log('🚫 User not authenticated, redirecting to login...');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('✅ User authenticated, rendering protected content');
   return children;
 }
 
 // Public Route component (redirect if authenticated)
 function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasInitialized } = useAuth();
 
-  if (isLoading) {
+  if (!hasInitialized || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
       </div>
     );
   }
