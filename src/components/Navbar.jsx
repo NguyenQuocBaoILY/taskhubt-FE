@@ -16,6 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Projects', href: '/projects', icon: FolderIcon },
   { name: 'Tasks', href: '/tasks', icon: ClipboardDocumentListIcon },
+  { name: 'Workflow Demo', href: '/workflow-demo', icon: Cog6ToothIcon },
   { name: 'Profile', href: '/profile', icon: UserIcon },
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
 ];

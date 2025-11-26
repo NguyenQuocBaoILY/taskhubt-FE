@@ -1,5 +1,6 @@
 import { createContext, useReducer, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import authService from '../services/authService';
 
 // Initial state
 const initialState = {
@@ -90,22 +91,23 @@ export function AuthProvider({ children }) {
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          // For now, use mock user data since backend is not ready
-          const mockUser = {
-            id: 1,
-            name: localStorage.getItem('user_name') || 'Nguyen Van A',
-            email: localStorage.getItem('user_email') || 'test@example.com',
-            avatar: null,
-          };
+          console.log('🔍 Verifying token with API...');
+          
+          // Verify token with real API
+          const user = await authService.getCurrentUser();
           
           dispatch({
             type: AUTH_ACTIONS.LOGIN_SUCCESS,
             payload: {
-              user: mockUser,
+              user,
               token,
             },
           });
-        } catch {
+          
+          console.log('✅ Token verified, user logged in:', user.name);
+        } catch (error) {
+          console.warn('⚠️ Token invalid, logging out:', error.message);
+          
           // Token is invalid, remove it
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
@@ -114,6 +116,7 @@ export function AuthProvider({ children }) {
           dispatch({ type: AUTH_ACTIONS.LOGOUT });
         }
       } else {
+        console.log('ℹ️ No token found, user not logged in');
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     };
@@ -126,40 +129,58 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
-      // For now, use mock authentication since backend is not ready
-      // Simple validation: just check if email and password are provided
+      // Validate input
       if (!email || !password) {
         throw new Error('Email và mật khẩu là bắt buộc');
       }
 
-      const mockUser = {
-        id: 1,
-        name: 'Nguyen Van A',
-        email: email,
-        avatar: null,
-      };
+      console.log('🔐 Attempting login with real API...');
       
-      const mockToken = 'mock_access_token_' + Date.now();
-      const mockRefreshToken = 'mock_refresh_token_' + Date.now();
-
+      // Call real API
+      const response = await authService.login(email, password);
+      
+      // Extract data from API response
+      const { user, access_token, refresh_token } = response;
+      
       // Store tokens and user info
-      localStorage.setItem('access_token', mockToken);
-      localStorage.setItem('refresh_token', mockRefreshToken);
-      localStorage.setItem('user_name', mockUser.name);
-      localStorage.setItem('user_email', mockUser.email);
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('user_name', user.name);
+      localStorage.setItem('user_email', user.email);
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: {
-          user: mockUser,
-          token: mockToken,
+          user,
+          token: access_token,
         },
       });
 
+      console.log('✅ Login successful:', user.name);
       toast.success('Đăng nhập thành công!');
       return { success: true };
     } catch (error) {
-      const errorMessage = error.message || 'Đăng nhập thất bại';
+      console.error('❌ Login failed:', error);
+      
+      let errorMessage = 'Đăng nhập thất bại';
+      
+      if (error.response) {
+        // API returned error
+        if (error.response.status === 401) {
+          errorMessage = 'Email hoặc mật khẩu không đúng';
+        } else if (error.response.status === 429) {
+          errorMessage = 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau';
+        } else {
+          errorMessage = error.response.data?.message || 'Lỗi server';
+        }
+      } else if (error.request) {
+        // Network error
+        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng';
+      } else {
+        // Other errors
+        errorMessage = error.message || 'Đăng nhập thất bại';
+      }
+      
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: errorMessage,
@@ -174,35 +195,50 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
-      // For now, use mock authentication since backend is not ready
-      const mockUser = {
-        id: 1,
-        name: userData.name || 'Nguyen Van A',
-        email: userData.email,
-        avatar: null,
-      };
+      console.log('📝 Attempting signup with real API...');
       
-      const mockToken = 'mock_access_token_' + Date.now();
-      const mockRefreshToken = 'mock_refresh_token_' + Date.now();
-
+      // Call real API
+      const response = await authService.register(userData);
+      
+      // Extract data from API response
+      const { user, access_token, refresh_token } = response;
+      
       // Store tokens and user info
-      localStorage.setItem('access_token', mockToken);
-      localStorage.setItem('refresh_token', mockRefreshToken);
-      localStorage.setItem('user_name', mockUser.name);
-      localStorage.setItem('user_email', mockUser.email);
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('user_name', user.name);
+      localStorage.setItem('user_email', user.email);
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: {
-          user: mockUser,
-          token: mockToken,
+          user,
+          token: access_token,
         },
       });
 
+      console.log('✅ Signup successful:', user.name);
       toast.success('Đăng ký thành công!');
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Đăng ký thất bại';
+      console.error('❌ Signup failed:', error);
+      
+      let errorMessage = 'Đăng ký thất bại';
+      
+      if (error.response) {
+        if (error.response.status === 409) {
+          errorMessage = 'Email này đã được sử dụng';
+        } else if (error.response.status === 400) {
+          errorMessage = error.response.data?.message || 'Dữ liệu không hợp lệ';
+        } else {
+          errorMessage = error.response.data?.message || 'Lỗi server';
+        }
+      } else if (error.request) {
+        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng';
+      } else {
+        errorMessage = error.message || 'Đăng ký thất bại';
+      }
+      
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: errorMessage,
@@ -215,10 +251,14 @@ export function AuthProvider({ children }) {
   // Logout function
   const logout = async () => {
     try {
-      // No need to call API for mock logout
-      // await authAPI.logout();
+      console.log('🚪 Logging out with real API...');
+      
+      // Call real logout API
+      await authService.logout();
+      
+      console.log('✅ Logout API called successfully');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.warn('⚠️ Logout API error (continuing with local logout):', error.message);
     } finally {
       // Clear tokens and state
       localStorage.removeItem('access_token');
