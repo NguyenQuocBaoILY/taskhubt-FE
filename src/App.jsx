@@ -10,7 +10,6 @@ import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskBoard from './pages/TaskBoard';
 import TaskPage from './pages/TaskPage';
-import WorkflowDemo from './pages/WorkflowDemo';
 import Navbar from './components/Navbar';
 
 // Protected Route component
@@ -88,7 +87,6 @@ function AppContent() {
           <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="projects/:id/board" element={<TaskBoard />} />
           <Route path="tasks" element={<TaskPage />} />
-          <Route path="workflow-demo" element={<WorkflowDemo />} />
           <Route
             path="profile"
             element={

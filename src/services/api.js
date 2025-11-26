@@ -64,17 +64,21 @@ api.interceptors.response.use(
         } catch (refreshError) {
           console.error('❌ Token refresh failed:', refreshError);
           
-          // Refresh failed, redirect to login
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('user_name');
-          localStorage.removeItem('user_email');
-          window.location.href = '/login';
+          // Only redirect to login if refresh explicitly fails with 401/403
+          if (refreshError.response?.status === 401 || refreshError.response?.status === 403) {
+            console.log('🚑 Refresh token invalid, redirecting to login...');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_email');
+            window.location.href = '/login';
+          }
         }
       } else {
-        // No refresh token, redirect to login
-        localStorage.removeItem('access_token');
-        window.location.href = '/login';
+        console.log('⚠️ No refresh token available');
+        // Don't automatically redirect - let component handle authentication state
+        // localStorage.removeItem('access_token');
+        // window.location.href = '/login';
       }
     }
     

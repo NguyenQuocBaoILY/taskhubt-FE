@@ -12,8 +12,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth, useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
+import { projectAPI } from '../services/api';
 import toast from 'react-hot-toast';
-//import { projectsAPI } from '../services/api'; có api thì bỏ comment
 
 const mockProjects = [
   {
@@ -115,15 +115,34 @@ export default function ProjectList() {
   const fetchProjects = async () => {
     try {
       // TODO: backend phải trả về mảng project
-      const res = await projectsAPI.getProjects();
-      const list = res.data || []; // hoặc res.data.data tùy backend
-      setProjects(list);
+      // const res = await projectAPI.getProjects();
+      // const list = res.data || []; // hoặc res.data.data tùy backend
+      // setProjects(list);
+      
+      // Tạm thời dùng mock data cho đến khi API ready
+      console.log('📁 Loading projects from mock data...');
+      setProjects(mockProjects);
+      
+      // Uncomment phần dưới khi API ready:
+      // console.log('📁 Loading projects from API...');
+      // const res = await projectAPI.getProjects();
+      // const list = res.data || [];
+      // setProjects(list);
+      // console.log('✅ Projects loaded from API:', list.length);
     } catch (error) {
-      console.error('Lỗi tải danh sách dự án:', error);
-      toast.error('Lỗi tải danh sách dự án');
+      console.error('❌ Lỗi tải danh sách dự án:', error);
+      // Fallback to mock data if API fails
+      setProjects(mockProjects);
+      toast.error('Sử dụng dữ liệu demo. API chưa sẵn sàng.');
     }
   };
 
+  // Initialize with mock data immediately for better UX
+  useEffect(() => {
+    setProjects(mockProjects);
+  }, []);
+
+  // Then try to load from API
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -157,12 +176,11 @@ export default function ProjectList() {
   const handleCreateProject = async (projectData) => {
     try {
       // TODO: backend create project
-      // const res = await projectsAPI.createProject(projectData);
+      // const res = await projectAPI.createProject(projectData);
       // const created = res.data; // hoặc res.data.data
       // setProjects([created, ...projects]);
 
-      // Tạm thời (nếu backend chưa sẵn sàng) bạn có thể comment block trên
-      // và để newProject để test UI, nhưng khi backend xong thì xóa đoạn mock này:
+      // Tạm thời (nếu backend chưa sẵn sàng) để test UI
       const newProject = {
         id: Date.now(),
         ...projectData,
@@ -177,8 +195,16 @@ export default function ProjectList() {
 
       toast.success('Tạo dự án thành công!');
       setShowCreateModal(false);
+      
+      // Uncomment phần dưới khi API ready:
+      // console.log('📝 Creating project via API...');
+      // const res = await projectAPI.createProject(projectData);
+      // const created = res.data;
+      // setProjects([created, ...projects]);
+      // toast.success('Tạo dự án thành công!');
+      
     } catch (error) {
-      console.error('Lỗi tạo dự án:', error);
+      console.error('❌ Lỗi tạo dự án:', error);
       toast.error('Lỗi tạo dự án');
     }
   };

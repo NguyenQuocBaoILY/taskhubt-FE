@@ -16,6 +16,7 @@ import {
 import { useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
 import TaskModal from '../components/TaskModal';
+import { taskAPI } from '../services/api';
 import toast from 'react-hot-toast';
 //import { projectAPI } from '../services/api'; // TODO: sau này có thể thêm projectAPI
 
@@ -149,18 +150,29 @@ export default function ProjectDetail() {
         setCurrentProject(projectFromMock);
 
         // API TASK: lấy danh sách task theo projectId từ backend
-        const resTasks = await taskAPI.getTasks({ projectId: id });
-        const tasksFromApi = resTasks.data || [];
-        setTasks(tasksFromApi);
+        try {
+          const resTasks = await taskAPI.getTasks({ projectId: id });
+          const tasksFromApi = resTasks.data || [];
+          setTasks(tasksFromApi);
+        } catch (taskError) {
+          console.warn('⚠️ Cannot load tasks from API, using mock data:', taskError.message);
+          // Fallback to mock tasks if API fails
+          setTasks(mockTasks);
+        }
       } catch (error) {
         console.error('Lỗi tải chi tiết dự án:', error);
         toast.error('Lỗi tải thông tin dự án');
-        navigate('/projects');
+        // Don't navigate away, just use mock data
+        setProject(mockProject);
+        setCurrentProject(mockProject);
+        setTasks(mockTasks);
       }
     };
 
-    fetchProjectDetail();
-  }, [id, navigate, setCurrentProject]);
+    if (id) {
+      fetchProjectDetail();
+    }
+  }, [id, setCurrentProject]); // Add proper dependencies
 
   const handleUpdateProject = async (projectData) => {
     try {
