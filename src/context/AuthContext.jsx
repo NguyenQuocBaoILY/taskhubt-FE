@@ -99,6 +99,14 @@ export function AuthProvider({ children }) {
 
   // Initialize authentication state immediately from localStorage
   useEffect(() => {
+    const handleTokenExpired = () => {
+      console.log('🔔 Received token-expired event, logging out...');
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    };
+
+    // Listen for token expiration events from API interceptor
+    window.addEventListener('token-expired', handleTokenExpired);
+
     const initializeAuth = () => {
       console.log('🔐 Khởi tạo authentication từ localStorage...');
       
@@ -109,22 +117,19 @@ export function AuthProvider({ children }) {
       if (token && userName) {
         // ✅ CÓ TOKEN → SET AUTHENTICATED NGAY để tránh redirect
         console.log('✅ Tìm thấy token, đặt user authenticated ngay lập tức');
-        const cachedUser = {
-          username: userName,
-          name: userName,
-          email: userEmail
-        };
         
+        // ❌ KHÔNG dùng cached user info ngay lập tức
+        // Chỉ set authenticated state, user info sẽ được load từ API
         dispatch({
           type: AUTH_ACTIONS.INIT_FROM_STORAGE,
           payload: {
             hasToken: true,
-            user: cachedUser,
+            user: null, // Không dùng cached user
             token
           }
         });
         
-        // ✅ Verify token với API trong background (không block UI)
+        // ✅ Load user info từ API ngay lập tức
         authService.getCurrentUser()
           .then(user => {
             console.log('✅ Token verified với API:', user.name || user.username);
@@ -135,7 +140,7 @@ export function AuthProvider({ children }) {
           })
           .catch(error => {
             console.warn('⚠️ Token verification failed:', error.message);
-            // Chỉ logout nếu là 401/403, không logout nếu network error
+            // Chỉ logout nếu là 401/403 - token thực sự invalid
             if (error.response?.status === 401 || error.response?.status === 403) {
               console.log('❌ Token invalid, logging out...');
               localStorage.removeItem('access_token');
@@ -145,7 +150,32 @@ export function AuthProvider({ children }) {
               localStorage.removeItem('user_info');
               dispatch({ type: AUTH_ACTIONS.LOGOUT });
             } else {
-              console.log('📡 Network error, keeping user logged in with cached info');
+              // Network errors hoặc server errors - dùng cached user info
+              console.log('📡 Network/server error, using cached user info temporarily');
+              const fallbackUser = {
+                username: userName,
+                name: userName,
+                email: userEmail
+              };
+              dispatch({
+                type: AUTH_ACTIONS.SET_USER,
+                payload: fallbackUser
+              });
+              // Retry sau 5 giây nếu là network error
+              if (!error.response) {
+                setTimeout(() => {
+                  authService.getCurrentUser()
+                    .then(user => {
+                      dispatch({
+                        type: AUTH_ACTIONS.SET_USER,
+                        payload: user
+                      });
+                    })
+                    .catch(() => {
+                      console.log('📡 Retry failed, but keeping user logged in');
+                    });
+                }, 5000);
+              }
             }
           });
           
@@ -164,6 +194,11 @@ export function AuthProvider({ children }) {
     };
 
     initializeAuth();
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('token-expired', handleTokenExpired);
+    };
   }, []);
 
   // Login function

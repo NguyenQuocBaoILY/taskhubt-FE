@@ -77,13 +77,13 @@ export default function Navbar() {
                 <div className="flex-shrink-0">
                   <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                     <span className="text-primary-600 font-medium text-sm">
-                      {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                      {user?.name?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-gray-900">
-                    {user?.name || 'User'}
+                    {user?.name || user?.username || 'Loading...'}
                   </span>
                   <span className="text-xs text-gray-500">
                     {user?.role || 'Member'}
@@ -148,15 +148,15 @@ export default function Navbar() {
               <div className="flex items-center space-x-3">
                 <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
                   <span className="text-primary-600 font-medium">
-                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    {user?.name?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'U'}
                   </span>
                 </div>
                 <div>
                   <div className="text-base font-medium text-gray-800">
-                    {user?.name || 'User'}
+                    {user?.name || user?.username || 'Loading...'}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {user?.email || 'user@example.com'}
+                    {user?.email || 'Loading...'}
                   </div>
                 </div>
               </div>

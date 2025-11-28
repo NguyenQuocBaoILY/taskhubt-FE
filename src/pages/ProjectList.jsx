@@ -280,9 +280,11 @@ export default function ProjectList() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[project.status].color}`}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        statusConfig[project.status]?.color || 'bg-gray-100 text-gray-800'
+                      }`}
                     >
-                      {statusConfig[project.status].label}
+                      {statusConfig[project.status]?.label || project.status || 'Không xác định'}
                     </span>
                     <button className="text-gray-400 hover:text-gray-600">
                       <EllipsisVerticalIcon className="h-5 w-5" />
@@ -394,9 +396,11 @@ export default function ProjectList() {
                           </p>
                           <span className="text-sm text-gray-500">({project.key})</span>
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[project.status].color}`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              statusConfig[project.status]?.color || 'bg-gray-100 text-gray-800'
+                            }`}
                           >
-                            {statusConfig[project.status].label}
+                            {statusConfig[project.status]?.label || project.status || 'Không xác định'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mt-1 truncate">

@@ -72,7 +72,7 @@ export default function ProjectDetail() {
     if (id) {
       fetchProjectDetail();
     }
-  }, [id, setCurrentProject, navigate]);
+  }, [id]); // Remove setCurrentProject and navigate from dependency array
 
   // Load tasks only when tasks tab is active to avoid unnecessary API calls
   const fetchProjectTasks = async () => {

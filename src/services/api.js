@@ -73,8 +73,10 @@ api.interceptors.response.use(
             localStorage.removeItem('user_name');
             localStorage.removeItem('user_email');
             localStorage.removeItem('user_info');
-            // ✅ Không force redirect, để component tự handle
-            // window.location.href = '/login';
+            // Dispatch custom event to notify AuthContext about token expiration
+            window.dispatchEvent(new CustomEvent('token-expired'));
+          } else {
+            console.log('📡 Refresh failed due to network/server error, keeping user logged in');
           }
         }
       } else {
@@ -213,11 +215,12 @@ export const projectAPI = {
     });
   },
   
-  // Project CRUD operations - Create project by adding user as member
+  // Project CRUD operations - Create project using POST /api/projects
   createProject: (projectData) => {
     // Get userID from stored user info (from login response)
     const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
     const userId = userInfo.userId;
+    const username = userInfo.username;
     
     console.log('📝 Creating project with payload:', {
       projectData,
@@ -225,38 +228,118 @@ export const projectAPI = {
       userInfo
     });
     
-    // Since backend doesn't have POST /api/projects, we create project by:
-    // 1. Generate a projectId (could be based on name or timestamp)
-    // 2. Add user as owner/manager of that project
-    const projectId = projectData.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
-    
-    const memberPayload = {
-      userId: userId,
-      role: 'owner' // or 'manager' - user who creates becomes owner
+    // Create payload for POST /api/projects with correct backend schema
+    const projectPayload = {
+      projectId: projectData.projectId,
+      orgId: "string", // Required by backend
+      name: projectData.name,
+      key: "string", // Required by backend  
+      description: projectData.description || '',
+      visibility: "string", // Required by backend
+      managerUserId: userId,
+      managerUsername: username,
+      managerRole: projectData.status || 'manager', // Use status field as role
+      members: [
+        {
+          userId: userId,
+          role: projectData.status || 'manager' // Use status field as role
+        }
+      ],
+      priority: projectData.priority || 'medium',
+      status: 'ACTIVE',
+      startDate: projectData.startDate ? new Date(projectData.startDate).toISOString() : new Date().toISOString(),
+      endDate: projectData.endDate ? new Date(projectData.endDate).toISOString() : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
     };
     
-    console.log('📤 Creating project by adding member:', { projectId, memberPayload });
+    console.log('📤 Sending project payload to POST /api/projects:', projectPayload);
+    console.log('📋 Full payload structure:', JSON.stringify(projectPayload, null, 2));
     
-    // Create project by adding creator as owner
-    return api.post(`/api/projects/${projectId}/members`, memberPayload).then(response => {
-      // Transform response to match expected project format
+    return api.post('/api/projects', projectPayload).then(response => {
+      console.log('✅ Project creation success:', response.status);
+      console.log('📊 Response data:', response.data);
+      // Transform response to match expected project format for UI
+      const project = response.data;
       return {
         data: {
-          id: projectId,
-          name: projectData.name,
-          description: projectData.description,
-          status: projectData.status || 'ACTIVE',
-          priority: projectData.priority || 'medium',
-          ownerId: userId,
-          members: [response.data],
-          createdAt: new Date().toISOString(),
-          ...response.data
+          id: project.projectId || project.id,
+          name: project.name,
+          description: project.description,
+          status: project.status ? project.status.toLowerCase() : 'active',
+          priority: project.priority || 'medium',
+          ownerId: project.managerUserId,
+          members: project.members || [{
+            id: project.managerUserId,
+            name: project.managerUsername,
+            role: project.managerRole
+          }],
+          createdAt: project.startDate || new Date().toISOString(),
+          // Add required tasks object for UI
+          tasks: {
+            total: 0,
+            completed: 0,
+            inProgress: 0,
+            pending: 0
+          },
+          // Add lead info
+          lead: {
+            id: project.managerUserId,
+            name: project.managerUsername
+          },
+          ...project
         }
       };
+    }).catch(error => {
+      console.error('❌ Error creating project:', error);
+      console.error('❌ Error response data:', error.response?.data);
+      console.error('❌ Error response errors:', error.response?.data?.errors);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error headers:', error.response?.headers);
+      throw error;
     });
   },
   
-  updateProject: (projectId, data) => api.put(`/api/projects/${projectId}`, data),
+  updateProject: (projectId, projectData) => {
+    // Get userID from stored user info
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    const userId = userInfo.userId;
+    
+    console.log('📝 Updating project:', { projectId, projectData, userId, userInfo });
+    
+    // Create payload for PUT /api/projects/by-id/{projectId} with full schema
+    const updatePayload = {
+      projectId: projectData.projectId,
+      orgId: projectData.orgId || "string",
+      name: projectData.name,
+      key: projectData.key || "string", 
+      description: projectData.description || '',
+      status: projectData.status || 'ACTIVE',
+      visibility: projectData.visibility || "string",
+      ownerUserId: projectData.ownerUserId || userId,
+      avatar: projectData.avatar || null,
+      taskCount: projectData.taskCount || 0,
+      memberCount: projectData.memberCount || 0,
+      priority: projectData.priority || 'medium',
+      startDate: projectData.startDate ? new Date(projectData.startDate).toISOString() : new Date().toISOString(),
+      endDate: projectData.endDate ? new Date(projectData.endDate).toISOString() : null,
+      createdAt: projectData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      gsI4PK: projectData.gsI4PK || `USER#${userId}`,
+      gsI4SK: projectData.gsI4SK || `PROJECT#${projectData.projectId}`
+    };
+    
+    console.log('📤 Sending update payload to PUT /api/projects/by-id/' + projectId + ':', updatePayload);
+    
+    return api.put(`/api/projects/by-id/${projectId}`, updatePayload).then(response => {
+      console.log('✅ Project update success:', response.status);
+      console.log('📊 Update response data:', response.data);
+      return response;
+    }).catch(error => {
+      console.error('❌ Error updating project:', error);
+      console.error('❌ Error response data:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      throw error;
+    });
+  },
   deleteProject: (projectId) => api.delete(`/api/projects/${projectId}`),
   
   // Project members management using ProjectMembers endpoints
