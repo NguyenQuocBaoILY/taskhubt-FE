@@ -11,6 +11,12 @@ import ProjectDetail from './pages/ProjectDetail';
 import TaskBoard from './pages/TaskBoard';
 import TaskPage from './pages/TaskPage';
 import Navbar from './components/Navbar';
+// Admin imports
+import AdminLogin from './admin/pages/AdminLogin';
+import AdminLayout from './admin/components/AdminLayout';
+import AdminDashboard from './admin/pages/AdminDashboard';
+import AdminProjects from './admin/pages/AdminProjects';
+import AdminUsers from './admin/pages/AdminUsers';
 
 // Protected Route component
 function ProtectedRoute({ children }) {
@@ -91,6 +97,36 @@ function AppContent() {
             </PublicRoute>
           }
         />
+
+        {/* Admin routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={<AdminLayout />}
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="projects" element={<AdminProjects />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route
+            path="analytics"
+            element={
+              <div className="text-center py-12">
+                <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
+                <p className="mt-2 text-gray-600">Trang thống kê đang được phát triển...</p>
+              </div>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <div className="text-center py-12">
+                <h2 className="text-2xl font-bold text-gray-900">Admin Settings</h2>
+                <p className="mt-2 text-gray-600">Trang cài đặt admin đang được phát triển...</p>
+              </div>
+            }
+          />
+        </Route>
 
         {/* Protected routes */}
         <Route
