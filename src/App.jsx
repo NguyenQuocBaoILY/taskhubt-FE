@@ -12,7 +12,6 @@ import TaskBoard from './pages/TaskBoard';
 import TaskPage from './pages/TaskPage';
 import Navbar from './components/Navbar';
 // Admin imports
-import AdminLogin from './admin/pages/AdminLogin';
 import AdminLayout from './admin/components/AdminLayout';
 import AdminDashboard from './admin/pages/AdminDashboard';
 import AdminProjects from './admin/pages/AdminProjects';
@@ -100,7 +99,6 @@ function AppContent() {
         />
 
         {/* Admin routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
           element={<AdminLayout />}
