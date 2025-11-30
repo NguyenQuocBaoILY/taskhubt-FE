@@ -10,7 +10,14 @@ export default function AdminLayout() {
     // Check if admin is authenticated
     const checkAuth = () => {
       const adminToken = localStorage.getItem('admin_token');
-      setIsAuthenticated(!!adminToken);
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      
+      // Allow access if either:
+      // 1. Has admin token (hardcoded admin login)
+      // 2. Has regular token AND userType is Admin
+      const hasAdminAccess = adminToken || (userInfo.userType === 'Admin');
+      
+      setIsAuthenticated(!!hasAdminAccess);
       setIsLoading(false);
     };
 

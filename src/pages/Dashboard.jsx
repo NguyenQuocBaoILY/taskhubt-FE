@@ -8,15 +8,23 @@ import {
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  CalendarDaysIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useContext';
-import { dashboardAPI } from '../services/api';
+import { projectAPI, taskAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [recentTasks, setRecentTasks] = useState([]);
+  const [stats, setStats] = useState({
+    totalProjects: 0,
+    activeProjects: 0,
+    totalTasks: 0,
+    completedTasks: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -26,94 +34,106 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
+      console.log('🔄 Loading dashboard data...');
       
-      console.log('🔄 Đang kết nối với API...');
+      // Get userId from stored user info
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = userInfo.userId;
       
-      const statsResponse = await dashboardAPI.getStats();
-      console.log('📊 Stats từ API:', statsResponse.data);
+      if (!userId) {
+        throw new Error('No userId found in user_info');
+      }
+
+      // Fetch user's projects
+      const projectsRes = await projectAPI.getUserProjects(userId);
+      const userProjects = projectsRes.data || [];
+      setProjects(userProjects);
+
+      // Calculate project stats
+      const totalProjects = userProjects.length;
+      const activeProjects = userProjects.filter(p => p.status === 'active').length;
       
-      const activitiesResponse = await dashboardAPI.getActivities();
-      console.log('📋 Activities từ API:', activitiesResponse.data);
-      
-      setStats(statsResponse.data);
-      setActivities(activitiesResponse.data);
-      
-      toast.success('Đã tải dữ liệu dashboard từ API');
+      // Fetch tasks for all projects
+      let allTasks = [];
+      for (const project of userProjects.slice(0, 3)) { // Limit to first 3 projects for performance
+        try {
+          const tasksRes = await taskAPI.getProjectTasks(project.id);
+          const tasks = tasksRes.data || [];
+          allTasks = [...allTasks, ...tasks.map(task => ({
+            ...task,
+            projectName: project.name,
+            projectId: project.id
+          }))];
+        } catch (error) {
+          console.warn(`Cannot load tasks for project ${project.id}`);
+        }
+      }
+
+      // Sort tasks by creation date and get recent ones
+      const sortedTasks = allTasks.sort((a, b) => 
+        new Date(b.createdAt || b.updatedAt) - new Date(a.createdAt || a.updatedAt)
+      );
+      setRecentTasks(sortedTasks.slice(0, 5));
+
+      // Calculate task stats
+      const totalTasks = allTasks.length;
+      const completedTasks = allTasks.filter(task => 
+        task.status === 'completed' || task.status === 'done'
+      ).length;
+
+      setStats({
+        totalProjects,
+        activeProjects,
+        totalTasks,
+        completedTasks
+      });
+
+      console.log('✅ Dashboard data loaded successfully');
       
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
-      
-      if (error.response) {
-        toast.error(`API Error: ${error.response.status}`);
-      } else if (error.request) {
-        toast.error('Không thể kết nối với server');
-      } else {
-        toast.error(`Lỗi: ${error.message}`);
-      }
+      toast.error('Không thể tải dữ liệu dashboard');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const statCards = stats ? [
-    {
-      name: 'Tổng số dự án',
-      value: stats.totalProjects,
-      icon: FolderIcon,
-      color: 'bg-blue-500',
-      href: '/projects',
-    },
-    {
-      name: 'Tổng số task',
-      value: stats.totalTasks,
-      icon: ClipboardDocumentListIcon,
-      color: 'bg-green-500',
-      href: '/tasks',
-    },
-    {
-      name: 'Task đang thực hiện',
-      value: stats.inProgressTasks,
-      icon: ClockIcon,
-      color: 'bg-yellow-500',
-      href: '/tasks?status=in-progress',
-    },
-    {
-      name: 'Task hoàn thành',
-      value: stats.completedTasks,
-      icon: CheckCircleIcon,
-      color: 'bg-green-600',
-      href: '/tasks?status=completed',
-    },
-    {
-      name: 'Task quá hạn',
-      value: stats.overdueeTasks,
-      icon: ExclamationTriangleIcon,
-      color: 'bg-red-500',
-      href: '/tasks?overdue=true',
-    },
-    {
-      name: 'Thành viên',
-      value: stats.totalMembers,
-      icon: UserGroupIcon,
-      color: 'bg-purple-500',
-      href: '/users',
-    },
-  ] : [];
+  const getTaskStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+      case 'done':
+        return 'text-green-600 bg-green-100';
+      case 'in-progress':
+      case 'active':
+        return 'text-blue-600 bg-blue-100';
+      case 'pending':
+      case 'todo':
+        return 'text-yellow-600 bg-yellow-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getTaskStatusLabel = (status) => {
+    switch (status) {
+      case 'completed':
+      case 'done':
+        return 'Hoàn thành';
+      case 'in-progress':
+      case 'active':
+        return 'Đang làm';
+      case 'pending':
+      case 'todo':
+        return 'Chờ thực hiện';
+      default:
+        return status || 'Không xác định';
+    }
+  };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-red-600">
-          Không tải được dữ liệu dashboard từ API. Hãy kiểm tra backend và thử tải lại trang.
-        </p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -121,168 +141,228 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div>
+      <div className="bg-white shadow rounded-lg p-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          Chào mừng trở lại, {user?.name}!
+          Chào mừng trở lại, {user?.username || 'User'}!
         </h1>
         <p className="mt-1 text-sm text-gray-600">
-          Đây là tổng quan về các dự án và task của bạn
+          Đây là tổng quan về các dự án và task của bạn.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {statCards.map((stat) => (
-          <Link
-            key={stat.name}
-            to={stat.href}
-            className="relative bg-white pt-5 px-4 pb-12 sm:pt-6 sm:px-6 shadow rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200"
-          >
-            <dt>
-              <div className={`absolute ${stat.color} rounded-md p-3`}>
-                <stat.icon className="h-6 w-6 text-white" aria-hidden="true" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <FolderIcon className="h-8 w-8 text-blue-600" />
               </div>
-              <p className="ml-16 text-sm font-medium text-gray-500 truncate">
-                {stat.name}
-              </p>
-            </dt>
-            <dd className="ml-16 pb-6 flex items-baseline sm:pb-7">
-              <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-            </dd>
-          </Link>
-        ))}
-      </div>
-
-      {/* Task Status Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Task Status Distribution */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Phân phối trạng thái task
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">Chờ thực hiện</span>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Tổng dự án
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalProjects}
+                  </dd>
+                </dl>
               </div>
-              <span className="text-sm font-medium text-gray-900">{stats.pendingTasks}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">Đang thực hiện</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">{stats.inProgressTasks}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">Hoàn thành</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">{stats.completedTasks}</span>
             </div>
           </div>
-          
-          {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-yellow-500 via-blue-500 to-green-500 h-2 rounded-full"
-                style={{
-                  width: `${(stats.completedTasks / stats.totalTasks) * 100}%`
-                }}
-              ></div>
+          <div className="bg-gray-50 px-5 py-3">
+            <div className="text-sm">
+              <Link
+                to="/projects"
+                className="font-medium text-blue-700 hover:text-blue-900"
+              >
+                Xem tất cả
+              </Link>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {Math.round((stats.completedTasks / stats.totalTasks) * 100)}% hoàn thành
-            </p>
           </div>
         </div>
 
-        {/* Recent Activities */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
-              Hoạt động gần đây
-            </h3>
-            <Link
-              to="/activities"
-              className="text-sm text-primary-600 hover:text-primary-500"
-            >
-              Xem tất cả
-            </Link>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <PlayIcon className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Dự án đang hoạt động
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.activeProjects}
+                  </dd>
+                </dl>
+              </div>
+            </div>
           </div>
-          
-          <div className="flow-root">
-            <ul role="list" className="-mb-8">
-              {activities.map((activity, activityIdx) => (
-                <li key={activity.id}>
-                  <div className="relative pb-8">
-                    {activityIdx !== activities.length - 1 ? (
-                      <span
-                        className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        <span className={`${activity.color} h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white`}>
-                          <activity.icon className="h-4 w-4" aria-hidden="true" />
-                        </span>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ClipboardDocumentListIcon className="h-8 w-8 text-purple-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Tổng task
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.totalTasks}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CheckCircleIcon className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Task hoàn thành
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {stats.completedTasks}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Recent Projects */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Dự án gần đây
+              </h3>
+              <Link
+                to="/projects"
+                className="text-sm font-medium text-primary-600 hover:text-primary-500"
+              >
+                Xem tất cả
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {projects.length > 0 ? (
+                projects.slice(0, 5).map((project) => (
+                  <div
+                    key={project.id}
+                    className="flex items-center justify-between border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <FolderIcon className="h-6 w-6 text-blue-600" />
                       </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                        <div>
-                          <p className="text-sm text-gray-900">{activity.message}</p>
-                        </div>
-                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                          {activity.time}
-                        </div>
+                      <div>
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="text-sm font-medium text-gray-900 hover:text-primary-600"
+                        >
+                          {project.name}
+                        </Link>
+                        <p className="text-xs text-gray-500">
+                          {project.memberCount} thành viên • {project.taskCount} task
+                        </p>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        project.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {project.status === 'active' ? 'Đang hoạt động' : project.status}
+                      </span>
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Chưa có dự án</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Bắt đầu bằng cách tham gia một dự án.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Thao tác nhanh
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link
-            to="/projects/new"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <FolderIcon className="h-5 w-5 mr-2" />
-            Tạo dự án mới
-          </Link>
-          <Link
-            to="/tasks/new"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
-            Tạo task mới
-          </Link>
-          <Link
-            to="/reports"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <ChartBarIcon className="h-5 w-5 mr-2" />
-            Xem báo cáo
-          </Link>
-          <Link
-            to="/users"
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <UserGroupIcon className="h-5 w-5 mr-2" />
-            Quản lý thành viên
-          </Link>
+        {/* Recent Tasks */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Task gần đây
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {recentTasks.length > 0 ? (
+                recentTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <ClipboardDocumentListIcon className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {task.title || task.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {task.projectName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                        getTaskStatusColor(task.status)
+                      }`}>
+                        {getTaskStatusLabel(task.status)}
+                      </span>
+                      {task.dueDate && (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <CalendarDaysIcon className="h-4 w-4 mr-1" />
+                          {new Date(task.dueDate).toLocaleDateString('vi-VN')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <ClipboardDocumentListIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Chưa có task</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Task sẽ xuất hiện ở đây khi bạn được giao việc.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );

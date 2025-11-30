@@ -113,102 +113,191 @@ export const userAPI = {
 
 // Project API endpoints - Updated to use ProjectMembers endpoints
 export const projectAPI = {
-  // Get user's projects - transforms membership data to project format
-  getUserProjects: (userId) => {
-    return api.get(`/api/users/${userId}/projects`).then(response => {
-      const memberships = response.data || [];
+  // Get all projects from GET /api/projects
+  getAllProjects: (searchTerm = '') => {
+    const params = searchTerm ? { search: searchTerm } : {};
+    return api.get('/api/projects', { params }).then(response => {
+      const projects = response.data || [];
       
-      // Transform membership data to project format for UI
-      const projects = memberships.map(membership => ({
-        id: membership.projectId,
-        name: `Project ${membership.projectId}`, // Default name, could be enhanced
-        description: `Project managed by ${membership.username}`,
-        status: membership.memberStatus === 'ACTIVE' ? 'active' : 'inactive',
+      // Transform API response to UI format
+      const transformedProjects = projects.map(project => ({
+        id: project.projectId,
+        name: project.name,
+        description: project.description,
+        status: 'active', // Default status since API doesn't provide this
         priority: 'medium', // Default priority
-        role: membership.role,
-        memberStatus: membership.memberStatus,
-        joinedAt: membership.joinedAt,
-        createdAt: membership.createdAt,
-        updatedAt: membership.updatedAt,
-        username: membership.username,
-        userId: membership.userId,
-        // Add default tasks structure
+        memberCount: project.memberCount || 0,
+        taskCount: project.taskCount || 0,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        ownerUserId: project.ownerUserId,
+        // Default structure for compatibility
         tasks: {
-          total: 0,
+          total: project.taskCount || 0,
           completed: 0,
           inProgress: 0,
           pending: 0
         },
-        // Add default members array
-        members: [{
-          id: membership.userId,
-          name: membership.username,
-          role: membership.role,
-          status: membership.memberStatus
-        }],
-        // Add lead/owner info
-        lead: {
-          id: membership.userId,
-          name: membership.username
-        }
+        members: [], // Will be populated separately if needed
+        lead: project.ownerUserId ? {
+          id: project.ownerUserId,
+          name: 'Project Owner'
+        } : null
       }));
       
-      console.log('🔄 Transformed memberships to projects:', projects);
+      console.log('🔄 Transformed projects:', transformedProjects);
+      return { data: transformedProjects };
+    }).catch(error => {
+      console.error('❌ Cannot fetch projects:', error);
+      throw error;
+    });
+  },
+
+  // Get user's projects - using membership data and project details
+  getUserProjects: (userId) => {
+    return api.get(`/api/users/${userId}/projects`).then(async response => {
+      const memberships = response.data || [];
+      
+      // Get detailed project info for each membership
+      const projectPromises = memberships.map(async membership => {
+        try {
+          // Get full project details using the new API
+          const projectRes = await api.get(`/api/projects/${membership.projectId}`);
+          const project = projectRes.data;
+          
+          // Get project members to get real count and find manager
+          let realMemberCount = 0;
+          let projectManager = null;
+          
+          try {
+            const membersRes = await api.get(`/api/projects/${membership.projectId}/members`);
+            const members = membersRes.data || [];
+            realMemberCount = members.length;
+            
+            // Find manager from members
+            projectManager = members.find(member => member.role === 'manager');
+          } catch (memberError) {
+            console.warn('Cannot load members for project', membership.projectId);
+            realMemberCount = project.memberCount || 0;
+          }
+          
+          return {
+            id: project.projectId,
+            projectId: project.projectId,
+            name: project.name,
+            description: project.description,
+            status: membership.memberStatus === 'ACTIVE' ? 'active' : 'inactive',
+            priority: 'medium', // Default priority
+            role: membership.role,
+            memberStatus: membership.memberStatus,
+            joinedAt: membership.joinedAt,
+            memberCount: realMemberCount,
+            taskCount: project.taskCount || 0,
+            startDate: project.startDate,
+            endDate: project.endDate,
+            deadline: project.endDate, // For compatibility
+            createdAt: project.createdAt,
+            updatedAt: project.updatedAt,
+            ownerUserId: project.ownerUserId,
+            // Add tasks structure
+            tasks: {
+              total: project.taskCount || 0,
+              completed: 0,
+              inProgress: 0,
+              pending: 0
+            },
+            // Add member info from membership
+            members: [{
+              id: membership.userId,
+              name: membership.username,
+              role: membership.role,
+              status: membership.memberStatus
+            }],
+            // Add lead/manager info
+            lead: projectManager ? {
+              id: projectManager.userId,
+              name: projectManager.username || `User ${projectManager.userId.slice(-8)}`
+            } : {
+              id: project.ownerUserId,
+              name: 'Project Owner'
+            }
+          };
+        } catch (error) {
+          console.warn(`⚠️ Cannot get details for project ${membership.projectId}:`, error);
+          // Fallback to basic membership data
+          return {
+            id: membership.projectId,
+            projectId: membership.projectId,
+            name: `Project ${membership.projectId}`,
+            description: `Project managed by ${membership.username}`,
+            status: membership.memberStatus === 'ACTIVE' ? 'active' : 'inactive',
+            priority: 'medium',
+            role: membership.role,
+            memberStatus: membership.memberStatus,
+            joinedAt: membership.joinedAt,
+            createdAt: membership.createdAt,
+            updatedAt: membership.updatedAt,
+            memberCount: 1, // Fallback count
+            taskCount: 0,
+            deadline: new Date().toISOString(), // Add deadline for compatibility
+            tasks: { total: 0, completed: 0, inProgress: 0, pending: 0 },
+            members: [{ id: membership.userId, name: membership.username, role: membership.role, status: membership.memberStatus }],
+            lead: { id: membership.userId, name: membership.username }
+          };
+        }
+      });
+      
+      const projects = await Promise.all(projectPromises);
+      console.log('🔄 Transformed user projects with real data:', projects);
       return { data: projects };
-    }).catch(async (error) => {
+    }).catch(error => {
       console.warn('❌ /api/users/{userId}/projects failed:', error);
       return { data: [] };
     });
   },
   
-  // Get specific project details - get from project members
+  // Get specific project details - using direct project API
   getProject: (projectId) => {
-    // Get project info by fetching its members
-    return api.get(`/api/projects/${projectId}/members`).then(response => {
-      const members = response.data || [];
+    return api.get(`/api/projects/${projectId}`).then(response => {
+      const project = response.data;
       
-      if (members.length === 0) {
-        throw new Error('Project not found or no members');
+      if (!project) {
+        throw new Error('Project not found');
       }
       
-      // Find owner/manager
-      const owner = members.find(member => member.role === 'owner' || member.role === 'manager') || members[0];
-      
-      // Construct project from members data
-      const project = {
-        id: projectId,
-        name: `Project ${projectId}`,
-        description: `Project with ${members.length} member(s)`,
-        status: 'active',
-        priority: 'medium',
-        createdAt: members[0]?.createdAt,
-        updatedAt: members[0]?.updatedAt,
-        // Project members
-        members: members.map(member => ({
-          id: member.userId,
-          name: member.username,
-          role: member.role,
-          status: member.memberStatus,
-          joinedAt: member.joinedAt,
-          email: member.email || `${member.username}@example.com`
-        })),
-        // Project lead/owner
-        lead: {
-          id: owner.userId,
-          name: owner.username,
-          role: owner.role
-        },
-        // Default tasks structure
+      // Transform API response to UI format
+      const transformedProject = {
+        id: project.projectId,
+        projectId: project.projectId,
+        name: project.name,
+        description: project.description,
+        status: 'active', // Default status since API doesn't provide this
+        priority: 'medium', // Default priority
+        memberCount: project.memberCount || 0,
+        taskCount: project.taskCount || 0,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        ownerUserId: project.ownerUserId,
+        // Default structure for compatibility
         tasks: {
-          total: 0,
+          total: project.taskCount || 0,
           completed: 0,
           inProgress: 0,
           pending: 0
-        }
+        },
+        members: [], // Will be loaded separately if needed
+        lead: project.ownerUserId ? {
+          id: project.ownerUserId,
+          name: 'Project Owner'
+        } : null
       };
       
-      console.log('🔄 Constructed project from members:', project);
-      return { data: project };
+      console.log('🔄 Transformed project details:', transformedProject);
+      return { data: transformedProject };
     }).catch(error => {
       console.error('❌ Cannot get project details:', error);
       throw error;
@@ -217,83 +306,40 @@ export const projectAPI = {
   
   // Project CRUD operations - Create project using POST /api/projects
   createProject: (projectData) => {
-    // Get userID from stored user info (from login response)
-    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-    const userId = userInfo.userId;
-    const username = userInfo.username;
+    console.log('📝 Creating project with payload:', projectData);
     
-    console.log('📝 Creating project with payload:', {
-      projectData,
-      userId,
-      userInfo
-    });
-    
-    // Create payload for POST /api/projects with correct backend schema
+    // Create payload for POST /api/projects with new simplified schema
     const projectPayload = {
-      projectId: projectData.projectId,
-      orgId: "string", // Required by backend
-      name: projectData.name,
-      key: "string", // Required by backend  
-      description: projectData.description || '',
-      visibility: "string", // Required by backend
-      managerUserId: userId,
-      managerUsername: username,
-      managerRole: projectData.status || 'manager', // Use status field as role
-      members: [
-        {
-          userId: userId,
-          role: projectData.status || 'manager' // Use status field as role
-        }
-      ],
-      priority: projectData.priority || 'medium',
-      status: 'ACTIVE',
-      startDate: projectData.startDate ? new Date(projectData.startDate).toISOString() : new Date().toISOString(),
-      endDate: projectData.endDate ? new Date(projectData.endDate).toISOString() : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString()
+      nameProject: projectData.nameProject,
+      descriptionP: projectData.descriptionP,
+      startDate: projectData.startDate,
+      endDate: projectData.endDate
     };
     
     console.log('📤 Sending project payload to POST /api/projects:', projectPayload);
-    console.log('📋 Full payload structure:', JSON.stringify(projectPayload, null, 2));
     
     return api.post('/api/projects', projectPayload).then(response => {
       console.log('✅ Project creation success:', response.status);
       console.log('📊 Response data:', response.data);
+      
       // Transform response to match expected project format for UI
       const project = response.data;
       return {
         data: {
           id: project.projectId || project.id,
+          projectId: project.projectId,
           name: project.name,
           description: project.description,
-          status: project.status ? project.status.toLowerCase() : 'active',
-          priority: project.priority || 'medium',
-          ownerId: project.managerUserId,
-          members: project.members || [{
-            id: project.managerUserId,
-            name: project.managerUsername,
-            role: project.managerRole
-          }],
-          createdAt: project.startDate || new Date().toISOString(),
-          // Add required tasks object for UI
-          tasks: {
-            total: 0,
-            completed: 0,
-            inProgress: 0,
-            pending: 0
-          },
-          // Add lead info
-          lead: {
-            id: project.managerUserId,
-            name: project.managerUsername
-          },
-          ...project
+          startDate: project.startDate,
+          endDate: project.endDate,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          taskCount: project.taskCount || 0,
+          memberCount: project.memberCount || 0
         }
       };
     }).catch(error => {
-      console.error('❌ Error creating project:', error);
-      console.error('❌ Error response data:', error.response?.data);
-      console.error('❌ Error response errors:', error.response?.data?.errors);
-      console.error('❌ Error status:', error.response?.status);
-      console.error('❌ Error headers:', error.response?.headers);
+      console.error('❌ Project creation failed:', error.response?.data || error.message);
       throw error;
     });
   },
@@ -343,7 +389,51 @@ export const projectAPI = {
   deleteProject: (projectId) => api.delete(`/api/projects/${projectId}`),
   
   // Project members management using ProjectMembers endpoints
-  getProjectMembers: (projectId) => api.get(`/api/projects/${projectId}/members`),
+  getProjectMembers: async (projectId) => {
+    try {
+      console.log('🔄 Fetching project members for:', projectId);
+      
+      // Get members list
+      const membersResponse = await api.get(`/api/projects/${projectId}/members`);
+      const rawMembers = membersResponse.data || [];
+      console.log('📋 Raw members data:', rawMembers);
+      
+      // If no members, return empty array
+      if (rawMembers.length === 0) {
+        return { data: [] };
+      }
+      
+      // Get all users to match userId with user details
+      const usersResponse = await userAPI.getUsers({ limit: 1000 });
+      const users = usersResponse.data || [];
+      console.log('👥 All users data:', users.length, 'users');
+      
+      // Transform members with user details
+      const membersWithDetails = rawMembers.map(member => {
+        const userDetails = users.find(user => 
+          user.userId === member.userId || user.id === member.userId
+        );
+        
+        return {
+          id: member.userId,
+          userId: member.userId,
+          name: userDetails?.username || userDetails?.name || member.username || `User ${member.userId.slice(-8)}`,
+          email: userDetails?.email || `${member.username || 'user'}@email.com`,
+          role: member.role || 'member',
+          status: member.memberStatus || 'ACTIVE',
+          joinedAt: member.joinedAt,
+          permissions: member.permissions || []
+        };
+      });
+      
+      console.log('✅ Transformed members with details:', membersWithDetails);
+      return { data: membersWithDetails };
+      
+    } catch (error) {
+      console.error('❌ Error fetching project members:', error);
+      throw error;
+    }
+  },
   
   // Get specific member info
   getProjectMember: (projectId, userId) => api.get(`/api/projects/${projectId}/members/${userId}`),
@@ -410,7 +500,7 @@ export const taskAPI = {
 // Dashboard API for getting summary statistics
 export const dashboardAPI = {
   // 8. Dashboard data - statistics summary
-  getSummary: (userId, params = {}) => {
+  getSummary: (userId) => {
     // Fallback for dashboard data if specific endpoint is not available
     return Promise.all([
       userAPI.getUserProjects(userId).catch(() => ({ data: [] }))

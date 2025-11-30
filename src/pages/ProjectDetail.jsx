@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeftIcon,
@@ -45,6 +45,7 @@ export default function ProjectDetail() {
   
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -58,9 +59,19 @@ export default function ProjectDetail() {
         const projectRes = await projectAPI.getProject(id);
         const project = projectRes.data;
         setProject(project);
-        setCurrentProject(project);
         
-        console.log('✅ Project details loaded from API');
+        // Load project members for display
+        try {
+          const membersRes = await projectAPI.getProjectMembers(id);
+          const members = membersRes.data || [];
+          setMembers(members);
+          console.log('✅ Members loaded successfully:', members.length, members);
+        } catch (memberError) {
+          console.warn('⚠️ Failed to load project members:', memberError);
+          setMembers([]); // Set empty array if members fail to load
+        }
+        
+        console.log('✅ Project details and members loaded from API');
       } catch (error) {
         console.error('❌ Lỗi tải chi tiết dự án:', error);
         toast.error('Không thể tải thông tin dự án.');
@@ -72,10 +83,17 @@ export default function ProjectDetail() {
     if (id) {
       fetchProjectDetail();
     }
-  }, [id]); // Remove setCurrentProject and navigate from dependency array
+  }, [id, navigate]);
+
+  // Separate effect for setting current project to avoid infinite loop
+  useEffect(() => {
+    if (project) {
+      setCurrentProject(project);
+    }
+  }, [project, setCurrentProject]);
 
   // Load tasks only when tasks tab is active to avoid unnecessary API calls
-  const fetchProjectTasks = async () => {
+  const fetchProjectTasks = useCallback(async () => {
     try {
       console.log('📋 Loading project tasks...');
       const tasksRes = await taskAPI.getProjectTasks(id);
@@ -87,14 +105,14 @@ export default function ProjectDetail() {
       setTasks([]); // Set empty array instead of mock data
       toast.error('Không thể tải danh sách task.');
     }
-  };
+  }, [id]);
 
   // Load tasks only when user switches to tasks tab
   useEffect(() => {
     if (activeTab === 'tasks' && id) {
       fetchProjectTasks();
     }
-  }, [activeTab, id]);
+  }, [activeTab, id, fetchProjectTasks]);
 
   const handleUpdateProject = async (projectData) => {
     try {
@@ -131,8 +149,8 @@ export default function ProjectDetail() {
   };
 
   const getProgressPercentage = () => {
-    if (project?.tasks.total === 0) return 0;
-    return Math.round((project.tasks.completed / project.tasks.total) * 100);
+    // Since API doesn't provide task status breakdown, return 0% for now
+    return 0;
   };
 
   const isOverdue = (dueDate) => {
@@ -269,7 +287,7 @@ export default function ProjectDetail() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Thành viên ({project.members.length})
+              Thành viên ({members.length})
             </button>
           </nav>
         </div>
@@ -316,7 +334,7 @@ export default function ProjectDetail() {
                   <UserGroupIcon className="h-8 w-8 text-purple-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Thành viên</p>
-                    <p className="text-2xl font-bold text-gray-900">{project.members.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{members.length}</p>
                   </div>
                 </div>
               </div>
@@ -331,8 +349,8 @@ export default function ProjectDetail() {
                   style={{ width: `${getProgressPercentage()}%` }}
                 ></div>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                {getProgressPercentage()}% hoàn thành ({project.tasks.completed}/{project.tasks.total} tasks)
+              <p className="text-sm text-gray-600">
+                {getProgressPercentage()}% hoàn thành (0/{project.taskCount || 0} tasks)
               </p>
             </div>
 
@@ -350,7 +368,7 @@ export default function ProjectDetail() {
                 <dl className="space-y-3">
                   <div className="flex justify-between">
                     <dt className="text-sm font-medium text-gray-500">Project Lead:</dt>
-                    <dd className="text-sm text-gray-900">{project.lead.name}</dd>
+                    <dd className="text-sm text-gray-900">{project.lead?.name || 'Chưa gán'}</dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-sm font-medium text-gray-500">Ngày tạo:</dt>
@@ -442,7 +460,7 @@ export default function ProjectDetail() {
         {activeTab === 'team' && (
           <div className="p-6">
             <div className="space-y-4">
-              {project.members.map((member) => (
+              {(members && members.length > 0) ? members.map((member) => (
                 <div
                   key={member.id}
                   className="flex items-center justify-between border border-gray-200 rounded-lg p-4"
@@ -450,22 +468,44 @@ export default function ProjectDetail() {
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-sm font-medium text-gray-700">
-                        {member.name.charAt(0)}
+                        {member.name?.charAt(0) || 'U'}
                       </span>
                     </div>
                     <div>
-                      <h4 className="text-base font-medium text-gray-900">{member.name}</h4>
-                      <p className="text-sm text-gray-500">{member.email}</p>
+                      <h4 className="text-base font-medium text-gray-900">{member.name || 'Unknown'}</h4>
+                      <p className="text-sm text-gray-500">{member.email || 'No email'}</p>
+                      {member.joinedAt && (
+                        <p className="text-xs text-gray-400">
+                          Joined: {new Date(member.joinedAt).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-medium text-gray-900">{member.role}</span>
-                    {member.id === project.lead.id && (
-                      <p className="text-xs text-primary-600">Project Lead</p>
-                    )}
+                    <div className="flex flex-col items-end space-y-1">
+                      <span className="text-sm font-medium text-gray-900 capitalize">{member.role}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        member.status === 'ACTIVE' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {member.status || 'ACTIVE'}
+                      </span>
+                      {members.find(m => m.role === 'manager' && m.userId === member.userId) && (
+                        <p className="text-xs text-primary-600 font-medium">Project Manager</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8">
+                  <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Chưa có thành viên</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Dự án này chưa có thành viên nào được thêm vào.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

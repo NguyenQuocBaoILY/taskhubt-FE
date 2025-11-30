@@ -232,7 +232,8 @@ export function AuthProvider({ children }) {
         email: user.email,
         name: user.name,
         avatar: user.avatar,
-        status: user.status
+        status: user.status,
+        userType: user.userType || 'User' // Add userType for role-based redirection
       }));
 
       dispatch({

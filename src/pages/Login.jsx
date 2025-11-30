@@ -28,9 +28,41 @@ export default function Login() {
       return;
     }
 
+    // Check if admin credentials
+    if (formData.email === 'admin@gmail.com' && formData.password === 'admin123') {
+      // Admin login - store admin token and navigate to admin
+      const adminUser = {
+        userId: 'admin-001',
+        username: 'admin',
+        email: 'admin@gmail.com',
+        name: 'Administrator',
+        userType: 'Admin',
+        isAdmin: true
+      };
+
+      localStorage.setItem('admin_token', 'admin-fake-token-' + Date.now());
+      localStorage.setItem('admin_user', JSON.stringify(adminUser));
+      
+      navigate('/admin');
+      return;
+    }
+
+    // Regular user login
     const result = await login(formData.email, formData.password);
     if (result.success) {
-      navigate('/');
+      // Get user info from localStorage after successful login
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userType = userInfo.userType || 'User'; // Default to User if not specified
+
+      // Role-based redirection
+      switch (userType) {
+        case "Admin":
+          navigate("/admin");
+          break;
+        default:
+          navigate("/projects"); // Default for regular users
+          break;
+      }
     }
   };
 

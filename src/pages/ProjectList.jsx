@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  PlusIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   EllipsisVerticalIcon,
@@ -10,8 +9,7 @@ import {
   UserGroupIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth, useApp } from '../hooks/useContext';
-import ProjectModal from '../components/ProjectModal';
+import { useApp } from '../hooks/useContext';
 import { projectAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -34,11 +32,8 @@ export default function ProjectList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedProject] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // grid or list
 
-  const { user } = useAuth();
   const { setCurrentProject } = useApp();
   const navigate = useNavigate();
 
@@ -86,9 +81,8 @@ export default function ProjectList() {
 
     if (searchTerm) {
       filtered = filtered.filter(project =>
-        project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase())
+        project.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -107,53 +101,15 @@ export default function ProjectList() {
     filterProjects();
   }, [filterProjects]);
 
-  const handleCreateProject = async (projectData) => {
-    try {
-      console.log('📝 Creating project via API...');
-      console.log('📋 Project data:', projectData);
-      
-      const res = await projectAPI.createProject(projectData);
-      const newProject = res.data;
-      
-      console.log('✅ Project created successfully:', newProject);
-      setProjects([newProject, ...projects]);
-      toast.success('Tạo dự án thành công!');
-      setShowCreateModal(false);
-      
-      // Refresh projects list to get updated data
-      fetchProjects();
-    } catch (error) {
-      console.error('❌ Lỗi tạo dự án:', error);
-      console.error('❌ Error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: error.config?.url,
-        method: error.config?.method,
-        payload: error.config?.data
-      });
-      
-      let errorMessage = 'Không thể tạo dự án. Vui lòng thử lại.';
-      if (error.response?.status === 500) {
-        errorMessage = 'Lỗi server. Có thể endpoint chưa được implement.';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Endpoint không tồn tại. Cần kiểm tra API documentation.';
-      }
-      
-      toast.error(errorMessage);
-    }
-  };
-
   const handleProjectClick = (project) => {
     setCurrentProject(project);
     navigate(`/projects/${project.id}`);
   };
 
-  const getProgressPercentage = (tasks) => {
-    if (!tasks || typeof tasks !== 'object' || tasks.total === undefined || tasks.total === 0) {
-      return 0;
-    }
-    return Math.round((tasks.completed / tasks.total) * 100);
+  const getProgressPercentage = () => {
+    // Since API doesn't provide completed tasks info, return 0% for now
+    // This can be updated when we have task status API
+    return 0;
   };
 
   return (
@@ -166,13 +122,7 @@ export default function ProjectList() {
             Quản lý và theo dõi tất cả dự án của bạn
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Tạo dự án
-        </button>
+        {/* Note: Chỉ admin mới có thể tạo project từ trang admin */}
       </div>
 
       {/* Filters and Search */}
@@ -304,13 +254,13 @@ export default function ProjectList() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-700">Tiến độ</span>
                     <span className="text-sm text-gray-600">
-                      {getProgressPercentage(project.tasks)}%
+                      {getProgressPercentage()}%
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getProgressPercentage(project.tasks)}%` }}
+                      style={{ width: `${getProgressPercentage()}%` }}
                     ></div>
                   </div>
                 </div>
@@ -319,19 +269,19 @@ export default function ProjectList() {
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center">
                     <div className="text-lg font-semibold text-gray-900">
-                      {project.tasks.total}
+                      {project.taskCount || 0}
                     </div>
                     <div className="text-xs text-gray-500">Tổng task</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-green-600">
-                      {project.tasks.completed}
+                      0
                     </div>
                     <div className="text-xs text-gray-500">Hoàn thành</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-blue-600">
-                      {project.tasks.inProgress}
+                      0
                     </div>
                     <div className="text-xs text-gray-500">Đang làm</div>
                   </div>
@@ -342,7 +292,7 @@ export default function ProjectList() {
                   <div className="flex items-center space-x-2">
                     <UserGroupIcon className="h-4 w-4 text-gray-400" />
                     <span className="text-sm text-gray-600">
-                      {project.members.length} thành viên
+                      {project.memberCount || 0} thành viên
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -360,13 +310,13 @@ export default function ProjectList() {
                   <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-xs font-medium text-gray-700">
-                        {project.lead.name.charAt(0)}
+                        {project.lead?.name?.charAt(0) || 'U'}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-600">{project.lead.name}</span>
+                    <span className="text-sm text-gray-600">{project.lead?.name || 'Chưa gán'}</span>
                   </div>
-                  <span className={`text-sm font-medium ${priorityConfig[project.priority].color}`}>
-                    {priorityConfig[project.priority].label}
+                  <span className={`text-sm font-medium ${(priorityConfig[project.priority] || priorityConfig.medium).color}`}>
+                    {(priorityConfig[project.priority] || priorityConfig.medium).label}
                   </span>
                 </div>
               </div>
@@ -415,19 +365,19 @@ export default function ProjectList() {
                         <div className="w-20 bg-gray-200 rounded-full h-2">
                           <div
                             className="bg-primary-600 h-2 rounded-full"
-                            style={{ width: `${getProgressPercentage(project.tasks)}%` }}
+                            style={{ width: `${getProgressPercentage()}%` }}
                           ></div>
                         </div>
                         <span className="text-sm text-gray-600 w-10">
-                          {getProgressPercentage(project.tasks)}%
+                          {getProgressPercentage()}%
                         </span>
                       </div>
 
                       {/* Stats */}
                       <div className="text-sm text-gray-600 text-right">
-                        <div>{project.tasks.total} tasks</div>
+                        <div>{project.taskCount || 0} tasks</div>
                         <div className="text-xs text-gray-500">
-                          {project.members.length} thành viên
+                          {project.memberCount || 0} thành viên
                         </div>
                       </div>
 
@@ -435,14 +385,14 @@ export default function ProjectList() {
                       <div className="flex items-center space-x-2">
                         <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                           <span className="text-xs font-medium text-gray-700">
-                            {project.lead.name.charAt(0)}
+                            {project.lead?.name?.charAt(0) || 'U'}
                           </span>
                         </div>
                       </div>
 
                       {/* Priority */}
-                      <span className={`text-sm font-medium ${priorityConfig[project.priority].color} w-20 text-center`}>
-                        {priorityConfig[project.priority].label}
+                      <span className={`text-sm font-medium ${(priorityConfig[project.priority] || priorityConfig.medium).color} w-20 text-center`}>
+                        {(priorityConfig[project.priority] || priorityConfig.medium).label}
                       </span>
 
                       <button className="text-gray-400 hover:text-gray-600">
@@ -465,29 +415,10 @@ export default function ProjectList() {
           <p className="mt-1 text-sm text-gray-500">
             {searchTerm || statusFilter || priorityFilter
               ? 'Không tìm thấy dự án nào phù hợp với bộ lọc.'
-              : 'Bắt đầu bằng cách tạo dự án đầu tiên của bạn.'}
+              : 'Liên hệ với quản trị viên để tạo dự án mới.'}
           </p>
-          {!searchTerm && !statusFilter && !priorityFilter && (
-            <div className="mt-6">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Tạo dự án đầu tiên
-              </button>
-            </div>
-          )}
         </div>
       )}
-
-      {/* Create Project Modal */}
-      <ProjectModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSubmit={handleCreateProject}
-        project={selectedProject}
-      />
     </div>
   );
 }

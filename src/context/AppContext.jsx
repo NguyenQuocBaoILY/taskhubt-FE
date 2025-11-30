@@ -1,4 +1,4 @@
-import { createContext, useReducer } from 'react';
+import { createContext, useReducer, useCallback } from 'react';
 
 // Initial state
 const initialState = {
@@ -235,9 +235,9 @@ export function AppProvider({ children }) {
     dispatch({ type: APP_ACTIONS.DELETE_PROJECT, payload: projectId });
   };
 
-  const setCurrentProject = (project) => {
+  const setCurrentProject = useCallback((project) => {
     dispatch({ type: APP_ACTIONS.SET_CURRENT_PROJECT, payload: project });
-  };
+  }, []);
 
   // Project Members actions
   const setProjectMembers = (members) => {

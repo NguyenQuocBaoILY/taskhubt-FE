@@ -1,26 +1,10 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
-const priorities = [
-  { value: 'low', label: 'Thấp', color: 'text-green-600' },
-  { value: 'medium', label: 'Trung bình', color: 'text-yellow-600' },
-  { value: 'high', label: 'Cao', color: 'text-red-600' },
-];
-
-const roles = [
-  { value: 'owner', label: 'Chủ dự án' },
-  { value: 'manager', label: 'Quản lý' },
-  { value: 'member', label: 'Thành viên' },
-  { value: 'viewer', label: 'Người xem' },
-];
-
 export default function ProjectModal({ isOpen, onClose, onSubmit, project = null, loading = false }) {
   const [formData, setFormData] = useState({
-    projectId: '',
-    name: '',
-    description: '',
-    priority: 'medium',
-    status: 'owner', // This will be used as role
+    nameProject: '',
+    descriptionP: '',
     startDate: '',
     endDate: ''
   });
@@ -30,21 +14,15 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, project = null
   useEffect(() => {
     if (project) {
       setFormData({
-        projectId: project.projectId || '',
-        name: project.name || '',
-        description: project.description || '',
-        priority: project.priority || 'medium',
-        status: project.role || 'owner', // Map role to status
+        nameProject: project.name || '',
+        descriptionP: project.description || '',
         startDate: project.startDate || '',
         endDate: project.endDate || ''
       });
     } else {
       setFormData({
-        projectId: '',
-        name: '',
-        description: '',
-        priority: 'medium',
-        status: 'owner', // Default role
+        nameProject: '',
+        descriptionP: '',
         startDate: '',
         endDate: ''
       });
@@ -58,9 +36,8 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, project = null
 
     // Validation
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Tên dự án là bắt buộc';
-    if (!formData.projectId.trim()) newErrors.projectId = 'Mã dự án là bắt buộc';
-    if (!formData.description.trim()) newErrors.description = 'Mô tả dự án là bắt buộc';
+    if (!formData.nameProject.trim()) newErrors.nameProject = 'Tên dự án là bắt buộc';
+    if (!formData.descriptionP.trim()) newErrors.descriptionP = 'Mô tả dự án là bắt buộc';
     if (!formData.startDate.trim()) newErrors.startDate = 'Ngày bắt đầu là bắt buộc';
     if (!formData.endDate.trim()) newErrors.endDate = 'Ngày kết thúc là bắt buộc';
     
@@ -132,110 +109,46 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, project = null
           {/* Form */}
           <form onSubmit={handleSubmit} className="px-4 pb-4 sm:px-6 sm:pb-6">
             <div className="space-y-4">
-              {/* Project ID */}
-              <div>
-                <label htmlFor="projectId" className="block text-sm font-medium text-gray-700">
-                  Mã dự án <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="projectId"
-                  name="projectId"
-                  value={formData.projectId}
-                  onChange={handleChange}
-                  className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.projectId ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
-                  placeholder="Nhập mã dự án (ví dụ: PROJ-001)"
-                />
-                {errors.projectId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
-                )}
-              </div>
-
               {/* Project Name */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="nameProject" className="block text-sm font-medium text-gray-700">
                   Tên dự án <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="nameProject"
+                  name="nameProject"
+                  value={formData.nameProject}
                   onChange={handleChange}
                   className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.name ? 'border-red-300' : 'border-gray-300'
+                    errors.nameProject ? 'border-red-300' : 'border-gray-300'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                   placeholder="Nhập tên dự án"
                 />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                {errors.nameProject && (
+                  <p className="mt-1 text-sm text-red-600">{errors.nameProject}</p>
                 )}
               </div>
 
               {/* Description */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="descriptionP" className="block text-sm font-medium text-gray-700">
                   Mô tả dự án <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                  id="description"
-                  name="description"
+                  id="descriptionP"
+                  name="descriptionP"
                   rows={3}
-                  value={formData.description}
+                  value={formData.descriptionP}
                   onChange={handleChange}
                   className={`mt-1 block w-full px-3 py-2 border ${
-                    errors.description ? 'border-red-300' : 'border-gray-300'
+                    errors.descriptionP ? 'border-red-300' : 'border-gray-300'
                   } rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                   placeholder="Mô tả chi tiết về dự án"
                 />
-                {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+                {errors.descriptionP && (
+                  <p className="mt-1 text-sm text-red-600">{errors.descriptionP}</p>
                 )}
-              </div>
-
-              {/* Priority and Status Row */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Priority */}
-                <div>
-                  <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-                    Mức độ ưu tiên
-                  </label>
-                  <select
-                    id="priority"
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  >
-                    {priorities.map((priority) => (
-                      <option key={priority.value} value={priority.value}>
-                        {priority.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-                    Vai trò của bạn
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  >
-                    {roles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Start Date and End Date Row */}
@@ -243,7 +156,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, project = null
                 {/* Start Date */}
                 <div>
                   <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
-                    Ngày bắt đầu
+                    Ngày bắt đầu <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -263,7 +176,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, project = null
                 {/* End Date */}
                 <div>
                   <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-                    Ngày kết thúc
+                    Ngày kết thúc <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"

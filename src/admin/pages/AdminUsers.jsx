@@ -9,6 +9,7 @@ import {
   EnvelopeIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
+import { userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export default function AdminUsers() {
@@ -17,79 +18,60 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Simulate loading users from API
-    setTimeout(() => {
-      const mockUsers = [
-        {
-          id: 1,
-          username: 'tudtse184093',
-          name: 'DANG THANH TU',
-          email: 'tudtse184093@fpt.edu.vn',
-          phone: '+84 123 456 789',
-          role: 'manager',
-          status: 'active',
-          projectCount: 5,
-          taskCount: 23,
-          joinedDate: '2024-01-15',
-          lastLogin: '2024-11-28 09:30',
-        },
-        {
-          id: 2,
-          username: 'nguyenvana',
-          name: 'Nguyen Van A',
-          email: 'nguyenvana@company.com',
-          phone: '+84 987 654 321',
-          role: 'member',
-          status: 'active',
-          projectCount: 3,
-          taskCount: 15,
-          joinedDate: '2024-02-20',
-          lastLogin: '2024-11-27 16:45',
-        },
-        {
-          id: 3,
-          username: 'tranthib',
-          name: 'Tran Thi B',
-          email: 'tranthib@company.com',
-          phone: '+84 456 789 123',
-          role: 'viewer',
-          status: 'inactive',
-          projectCount: 1,
-          taskCount: 8,
-          joinedDate: '2024-03-10',
-          lastLogin: '2024-11-20 14:20',
-        },
-        {
-          id: 4,
-          username: 'levanc',
-          name: 'Le Van C',
-          email: 'levanc@company.com',
-          phone: '+84 789 123 456',
-          role: 'admin',
-          status: 'active',
-          projectCount: 8,
-          taskCount: 45,
-          joinedDate: '2024-01-01',
-          lastLogin: '2024-11-28 08:15',
-        },
-        {
-          id: 5,
-          username: 'phamthid',
-          name: 'Pham Thi D',
-          email: 'phamthid@company.com',
-          phone: '+84 321 654 987',
-          role: 'member',
-          status: 'pending',
-          projectCount: 0,
-          taskCount: 0,
-          joinedDate: '2024-11-25',
-          lastLogin: 'Chưa đăng nhập',
-        },
-      ];
-      setUsers(mockUsers);
-      setIsLoading(false);
-    }, 1000);
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      console.log('🔄 Loading users from API...');
+      
+      const response = await userAPI.getUsers({ limit: 1000 });
+      const usersData = response.data || [];
+      
+      // Transform API response to match UI expectations
+      const transformedUsers = usersData.map((user, index) => ({
+        id: user.userId || user.id || index + 1,
+        userId: user.userId || user.id,
+        username: user.username || user.name || `user${index + 1}`,
+        name: user.name || user.username || 'Unknown User',
+        email: user.email || `${user.username || 'user'}@email.com`,
+        phone: user.phone || user.phoneNumber || 'N/A',
+        role: user.role || 'member',
+        status: user.status || user.memberStatus || 'active',
+        projectCount: user.projectCount || 0,
+        taskCount: user.taskCount || 0,
+        joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+        lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A',
+      }));
+      
+      setUsers(transformedUsers);
+      console.log('✅ Users loaded successfully:', transformedUsers.length);
+      
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      toast.error('Không thể tải danh sách người dùng');
+      setUsers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Bạn có chắc muốn xóa người dùng này?')) {
+      try {
+        // TODO: Implement user deletion API when available
+        console.log('🗑️ Deleting user:', userId);
+        
+        // Remove user from local state for now
+        setUsers(users.filter(user => user.id !== userId));
+        toast.success('Đã xóa người dùng thành công');
+      } catch (error) {
+        console.error('❌ Error deleting user:', error);
+        toast.error('Không thể xóa người dùng');
+      }
+    }
+  };
 
   const getRoleBadge = (role) => {
     const roleConfig = {
@@ -122,14 +104,8 @@ export default function AdminUsers() {
     );
   };
 
-  const handleDeleteUser = (userId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      toast.success('Xóa người dùng thành công!');
-    }
-  };
-
   const handleStatusChange = (userId, newStatus) => {
+    // TODO: Implement status update API when available
     setUsers(users.map(user => 
       user.id === userId ? { ...user, status: newStatus } : user
     ));
@@ -137,9 +113,9 @@ export default function AdminUsers() {
   };
 
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.username || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {

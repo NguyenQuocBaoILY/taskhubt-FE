@@ -16,6 +16,7 @@ import AdminLogin from './admin/pages/AdminLogin';
 import AdminLayout from './admin/components/AdminLayout';
 import AdminDashboard from './admin/pages/AdminDashboard';
 import AdminProjects from './admin/pages/AdminProjects';
+import AdminProjectDetail from './admin/pages/AdminProjectDetail';
 import AdminUsers from './admin/pages/AdminUsers';
 
 // Protected Route component
@@ -55,7 +56,7 @@ function ProtectedRoute({ children }) {
 
 // Public Route component (redirect if authenticated)
 function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading, hasInitialized } = useAuth();
+  const { isLoading, hasInitialized } = useAuth();
 
   if (!hasInitialized || isLoading) {
     return (
@@ -107,6 +108,7 @@ function AppContent() {
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="projects" element={<AdminProjects />} />
+          <Route path="projects/:id" element={<AdminProjectDetail />} />
           <Route path="users" element={<AdminUsers />} />
           <Route
             path="analytics"
