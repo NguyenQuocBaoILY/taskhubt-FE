@@ -33,7 +33,7 @@ export default function AdminUsers() {
       const transformedUsers = usersData.map((user, index) => ({
         id: user.userId || user.id || index + 1,
         userId: user.userId || user.id,
-        username: user.username || user.name || `user${index + 1}`,
+        username: user.username || `user${index + 1}`,
         name: user.name || user.username || 'Unknown User',
         email: user.email || `${user.username || 'user'}@email.com`,
         phone: user.phone || user.phoneNumber || 'N/A',

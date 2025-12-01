@@ -133,9 +133,20 @@ export function AuthProvider({ children }) {
         authService.getCurrentUser()
           .then(user => {
             console.log('✅ Token verified với API:', user.name || user.username);
+            console.log('👤 Full user data from /api/Auth/me:', user);
+            
+            // API giờ chỉ trả về {userId, name, email} - đảm bảo có đủ fields cần thiết
+            const userData = {
+              userId: user.userId,
+              name: user.name || user.username || 'Unknown User',
+              username: user.username || user.name, // Fallback cho compatibility
+              email: user.email,
+              ...user // Spread để giữ các fields khác nếu có
+            };
+            
             dispatch({
               type: AUTH_ACTIONS.SET_USER,
-              payload: user
+              payload: userData
             });
           })
           .catch(error => {

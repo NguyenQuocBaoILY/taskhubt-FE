@@ -218,7 +218,7 @@ export const projectAPI = {
             // Add lead/manager info
             lead: projectManager ? {
               id: projectManager.userId,
-              name: projectManager.username || `User ${projectManager.userId.slice(-8)}`
+              name: projectManager.name || projectManager.username || `User ${projectManager.userId.slice(-8)}`
             } : {
               id: project.ownerUserId,
               name: 'Project Owner'
@@ -243,8 +243,8 @@ export const projectAPI = {
             taskCount: 0,
             deadline: new Date().toISOString(), // Add deadline for compatibility
             tasks: { total: 0, completed: 0, inProgress: 0, pending: 0 },
-            members: [{ id: membership.userId, name: membership.username, role: membership.role, status: membership.memberStatus }],
-            lead: { id: membership.userId, name: membership.username }
+            members: [{ id: membership.userId, name: membership.name || membership.username, role: membership.role, status: membership.memberStatus }],
+            lead: { id: membership.userId, name: membership.name || membership.username }
           };
         }
       });
@@ -417,7 +417,7 @@ export const projectAPI = {
         return {
           id: member.userId,
           userId: member.userId,
-          name: userDetails?.username || userDetails?.name || member.username || `User ${member.userId.slice(-8)}`,
+          name: userDetails?.name || userDetails?.username || member.username || `User ${member.userId.slice(-8)}`,
           email: userDetails?.email || `${member.username || 'user'}@email.com`,
           role: member.role || 'member',
           status: member.memberStatus || 'ACTIVE',
