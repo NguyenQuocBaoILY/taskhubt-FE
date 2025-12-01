@@ -167,9 +167,6 @@ export default function AdminProjects() {
                 Trạng thái
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Độ ưu tiên
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Tiến độ
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -221,11 +218,6 @@ export default function AdminProjects() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {getStatusBadge(project.status || 'active')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium text-blue-600 bg-blue-50">
-                    Bình thường
-                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">

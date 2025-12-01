@@ -95,13 +95,6 @@ export default function AdminDashboard() {
       color: 'bg-purple-600',
       href: '/admin/projects',
     },
-    {
-      name: 'Tổng thành viên',
-      value: stats.totalMembers,
-      icon: ChartBarIcon,
-      color: 'bg-orange-600',
-      href: '/admin/projects',
-    },
   ];
 
   if (isLoading) {
@@ -251,19 +244,6 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-2xl font-bold text-green-900">
                   {Math.round((stats.activeProjects / Math.max(stats.totalProjects, 1)) * 100)}%
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                <div className="flex items-center">
-                  <ChartBarIcon className="h-8 w-8 text-purple-600" />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-purple-900">Thành viên tham gia</p>
-                    <p className="text-xs text-purple-700">Tổng thành viên trong các dự án</p>
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-purple-900">
-                  {stats.totalMembers}
                 </div>
               </div>
             </div>

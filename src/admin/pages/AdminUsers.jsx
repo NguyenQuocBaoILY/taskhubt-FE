@@ -104,14 +104,6 @@ export default function AdminUsers() {
     );
   };
 
-  const handleStatusChange = (userId, newStatus) => {
-    // TODO: Implement status update API when available
-    setUsers(users.map(user => 
-      user.id === userId ? { ...user, status: newStatus } : user
-    ));
-    toast.success('Cập nhật trạng thái thành công!');
-  };
-
   const filteredUsers = users.filter(user =>
     (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,15 +128,6 @@ export default function AdminUsers() {
             Quản lý tất cả người dùng trong hệ thống
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <UserPlusIcon className="h-4 w-4 mr-2" />
-            Thêm nhân viên
-          </button>
-        </div>
       </div>
 
       {/* Search and Filters */}
@@ -162,19 +145,6 @@ export default function AdminUsers() {
               />
             </div>
           </div>
-          <select className="px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500">
-            <option value="">Tất cả vai trò</option>
-            <option value="admin">Quản trị viên</option>
-            <option value="manager">Quản lý</option>
-            <option value="member">Thành viên</option>
-            <option value="viewer">Người xem</option>
-          </select>
-          <select className="px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500">
-            <option value="">Tất cả trạng thái</option>
-            <option value="active">Hoạt động</option>
-            <option value="inactive">Không hoạt động</option>
-            <option value="pending">Chờ xác nhận</option>
-          </select>
         </div>
       </div>
 
@@ -197,9 +167,6 @@ export default function AdminUsers() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hoạt động
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Đăng nhập cuối
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hành động
@@ -254,9 +221,6 @@ export default function AdminUsers() {
                     {user.taskCount} nhiệm vụ
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {user.lastLogin}
-                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-2">
                     <button
@@ -265,23 +229,6 @@ export default function AdminUsers() {
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
-                    {user.status === 'active' ? (
-                      <button
-                        className="text-yellow-600 hover:text-yellow-900"
-                        title="Vô hiệu hóa"
-                        onClick={() => handleStatusChange(user.id, 'inactive')}
-                      >
-                        <UserIcon className="h-4 w-4" />
-                      </button>
-                    ) : (
-                      <button
-                        className="text-green-600 hover:text-green-900"
-                        title="Kích hoạt"
-                        onClick={() => handleStatusChange(user.id, 'active')}
-                      >
-                        <UserIcon className="h-4 w-4" />
-                      </button>
-                    )}
                     <button
                       className="text-red-600 hover:text-red-900"
                       title="Xóa"

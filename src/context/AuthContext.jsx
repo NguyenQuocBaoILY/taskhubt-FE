@@ -347,26 +347,28 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Logout function
+  // Logout function - optimized for speed
   const logout = async () => {
+    console.log('🚪 Fast logout initiated...');
+    
+    // 1. Immediately update UI state (fastest)
+    dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    
+    // 2. Clear all localStorage in batch
+    const keysToRemove = ['access_token', 'refresh_token', 'user_name', 'user_email', 'user_info', 'admin_token', 'admin_user'];
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // 3. Show success message immediately
+    toast.success('Đăng xuất thành công!');
+    
+    // 4. Call API in background (non-blocking)
     try {
-      console.log('🚪 Logging out with real API...');
-      
-      // Call real logout API
-      await authService.logout();
-      
-      console.log('✅ Logout API called successfully');
+      authService.logout().catch(error => {
+        console.warn('⚠️ Background logout API error:', error.message);
+      });
+      console.log('✅ Logout completed (API call in progress)');
     } catch (error) {
-      console.warn('⚠️ Logout API error (continuing with local logout):', error.message);
-    } finally {
-      // Clear tokens and state
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_name');
-      localStorage.removeItem('user_email');
-      localStorage.removeItem('user_info');
-      dispatch({ type: AUTH_ACTIONS.LOGOUT });
-      toast.success('Đăng xuất thành công!');
+      console.warn('⚠️ Logout API error (UI already updated):', error.message);
     }
   };
 

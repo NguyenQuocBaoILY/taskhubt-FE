@@ -22,13 +22,6 @@ import AdminUsers from './admin/pages/AdminUsers';
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading, hasInitialized } = useAuth();
 
-  console.log('🛡️ ProtectedRoute check:', { 
-    isAuthenticated, 
-    isLoading, 
-    hasInitialized,
-    currentPath: window.location.pathname 
-  });
-
   // ✅ CHỈ show loading khi chưa khởi tạo hoặc đang xử lý
   if (!hasInitialized || isLoading) {
     return (
@@ -45,11 +38,9 @@ function ProtectedRoute({ children }) {
 
   // ✅ CHỈ redirect khi đã initialized VÀ không authenticated
   if (!isAuthenticated) {
-    console.log('🚫 User not authenticated, redirecting to login...');
     return <Navigate to="/login" replace />;
   }
 
-  console.log('✅ User authenticated, rendering protected content');
   return children;
 }
 
