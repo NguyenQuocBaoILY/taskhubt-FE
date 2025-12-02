@@ -138,11 +138,13 @@ export function AuthProvider({ children }) {
             // API giờ chỉ trả về {userId, name, email} - đảm bảo có đủ fields cần thiết
             const userData = {
               userId: user.userId,
-              name: user.name || user.username || 'Unknown User',
-              username: user.username || user.name, // Fallback cho compatibility
+              name: user.name || user.username || userName || 'Unknown User', // Ưu tiên name từ API, fallback về cached userName
+              username: user.username || user.name || userName, // Fallback cho compatibility
               email: user.email,
               ...user // Spread để giữ các fields khác nếu có
             };
+            
+            console.log('📝 Final userData being set:', userData);
             
             dispatch({
               type: AUTH_ACTIONS.SET_USER,
@@ -164,8 +166,8 @@ export function AuthProvider({ children }) {
               // Network errors hoặc server errors - dùng cached user info
               console.log('📡 Network/server error, using cached user info temporarily');
               const fallbackUser = {
-                username: userName,
-                name: userName,
+                name: userName || 'Unknown User', // Ưu tiên name field
+                username: userName, // Keep username for compatibility
                 email: userEmail
               };
               dispatch({
@@ -233,7 +235,7 @@ export function AuthProvider({ children }) {
       // Store tokens and user info
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username);
+      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
       localStorage.setItem('user_email', user.email);
       
       // Store complete user info for API usage (including userId)
@@ -241,7 +243,7 @@ export function AuthProvider({ children }) {
         userId: user.userId,
         username: user.username,
         email: user.email,
-        name: user.name,
+        name: user.name || user.username, // Đảm bảo có name field
         avatar: user.avatar,
         status: user.status,
         userType: user.userType || 'User' // Add userType for role-based redirection
@@ -305,7 +307,7 @@ export function AuthProvider({ children }) {
       // Store tokens and user info
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username);
+      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
       localStorage.setItem('user_email', user.email);
 
       dispatch({
@@ -372,6 +374,81 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Google Login function
+  const googleLogin = async (idToken) => {
+    try {
+      dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+
+      console.log('🔐 Attempting Google login with real API...');
+      
+      // Call Google login API
+      const response = await authService.googleLogin(idToken, 'web');
+      
+      // Extract data from API response
+      const { user, access_token, refresh_token, isNewUser } = response;
+      
+      // Store tokens and user info (same as regular login)
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
+      localStorage.setItem('user_email', user.email);
+      
+      // Store complete user info for API usage
+      localStorage.setItem('user_info', JSON.stringify({
+        userId: user.userId,
+        username: user.username,
+        email: user.email,
+        name: user.name || user.username, // Đảm bảo có name field
+        avatar: user.avatar,
+        status: user.status,
+        userType: user.userType || 'User',
+        authProvider: 'GOOGLE' // Mark as Google user
+      }));
+
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_SUCCESS,
+        payload: {
+          user: user,
+          token: access_token
+        }
+      });
+
+      // Show appropriate message (only if not from callback)
+      if (isNewUser) {
+        console.log('🎉 New user created via Google:', user.name);
+      } else {
+        console.log('👋 Existing user logged in via Google:', user.name);
+      }
+      
+      console.log('✅ Google login successful for:', user.name || user.username);
+      return { success: true, isNewUser };
+    } catch (error) {
+      console.error('❌ Google login failed:', error);
+      
+      let errorMessage = 'Đăng nhập Google thất bại';
+      
+      if (error.response) {
+        if (error.response.status === 400) {
+          errorMessage = 'Token Google không hợp lệ';
+        } else {
+          errorMessage = error.response.data?.message || 'Lỗi server';
+        }
+      } else if (error.request) {
+        errorMessage = 'Không thể kết nối đến server';
+      } else {
+        errorMessage = error.message || 'Đăng nhập Google thất bại';
+      }
+      
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAILURE,
+        payload: errorMessage,
+      });
+      
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -389,6 +466,7 @@ export function AuthProvider({ children }) {
     ...state,
     login,
     signup,
+    googleLogin,
     logout,
     clearError,
     updateUser,

@@ -88,6 +88,42 @@ export const authService = {
       }
     }
   },
+
+  // Google Login
+  googleLogin: async (idToken, deviceInfo = 'web') => {
+    const response = await authAPI.post('/api/Auth/google-login', {
+      idToken: idToken,
+      deviceInfo: deviceInfo,
+    });
+    
+    // Backend returns: { accessToken, refreshToken, user, message, isNewUser }
+    const { accessToken, refreshToken, user, message, isNewUser } = response.data;
+    
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: user,
+      message: message,
+      isNewUser: isNewUser
+    };
+  },
+
+  // Forgot Password
+  forgotPassword: async (email) => {
+    const response = await authAPI.post('/api/Auth/forgot-password', {
+      email: email,
+    });
+    return response.data;
+  },
+
+  // Reset Password
+  resetPassword: async (data) => {
+    const response = await authAPI.post('/api/Auth/reset-password', {
+      token: data.token,
+      newPassword: data.newPassword,
+    });
+    return response.data;
+  },
 };
 
 export default authService;
