@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { taskAPI } from '../services/api';
+import { taskAPI, enrichTasksWithAssigneeNames } from '../services/api';
 import toast from 'react-hot-toast';
 import TaskModal from '../components/TaskModal';
 
@@ -9,15 +9,59 @@ function TaskPage() {
   const [selectedTask, setSelectedTask] = useState(null); // để xem/sửa
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const DEFAULT_PROJECT_ID = 'PROJECT#1'; // TODO: thay bằng project thật
-
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const res = await taskAPI.getTasks({ projectId: DEFAULT_PROJECT_ID });
-      setTasks(res.data || []);
+      
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      if (!userId) {
+        toast.error('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
+        return;
+      }
+      
+      // TODO: Get user's projects and load tasks for all projects
+      // For now, we'll need a specific project ID to load tasks
+      // Since tasks API requires projectId, we can't get "all tasks" directly
+      
+      // Alternative: Get user's projects first, then get tasks for each project
+      const { projectAPI } = await import('../services/api');
+      const projectsRes = await projectAPI.getUserProjects(userId);
+      const userProjects = projectsRes.data || [];
+      
+      console.log('📋 Loading tasks for user projects:', userProjects.length);
+      
+      if (userProjects.length === 0) {
+        setTasks([]);
+        toast.info('Bạn chưa có project nào. Vui lòng tạo project trước.');
+        return;
+      }
+      
+      // Load tasks for all user projects
+      let allTasks = [];
+      for (const project of userProjects) {
+        try {
+          const tasksRes = await taskAPI.getProjectTasks(project.projectId || project.id, userId);
+          const projectTasks = (tasksRes.data || []).map(task => ({
+            ...task,
+            projectName: project.name,
+            projectId: project.projectId || project.id
+          }));
+          allTasks = [...allTasks, ...projectTasks];
+        } catch (error) {
+          console.warn('Cannot load tasks for project', project.id, error.message);
+        }
+      }
+      
+      // Enrich all tasks with assignee names
+      const enrichedTasks = await enrichTasksWithAssigneeNames(allTasks);
+      setTasks(enrichedTasks);
+      console.log('✅ All tasks loaded with assignee names:', enrichedTasks.length);
+      
     } catch (err) {
-      console.error(err);
+      console.error('❌ Error loading tasks:', err);
       toast.error('Không tải được danh sách task');
     } finally {
       setLoading(false);

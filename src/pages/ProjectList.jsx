@@ -10,7 +10,7 @@ import {
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useApp } from '../hooks/useContext';
-import { projectAPI } from '../services/api';
+import { projectAPI, taskAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const statusConfig = {
@@ -52,8 +52,36 @@ export default function ProjectList() {
       const res = await projectAPI.getUserProjects(userId);
       const projects = res.data || [];
       
-      setProjects(projects);
-      console.log('✅ Projects loaded from API:', projects.length);
+      // Fetch task statistics for each project
+      const projectsWithStats = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const tasksRes = await taskAPI.getProjectTasks(project.projectId || project.id, userId);
+            const tasks = tasksRes.data || [];
+            
+            const completedTasks = tasks.filter(task => task.status === 'completed').length;
+            const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
+            
+            return {
+              ...project,
+              taskCount: tasks.length,
+              completedTasks,
+              inProgressTasks
+            };
+          } catch (error) {
+            console.warn('Cannot fetch tasks for project', project.id, error);
+            return {
+              ...project,
+              taskCount: 0,
+              completedTasks: 0,
+              inProgressTasks: 0
+            };
+          }
+        })
+      );
+      
+      setProjects(projectsWithStats);
+      console.log('✅ Projects loaded with task stats:', projectsWithStats.length);
     } catch (error) {
       console.error('❌ Lỗi tải danh sách dự án:', error);
       // Set empty array on error
@@ -102,14 +130,29 @@ export default function ProjectList() {
   }, [filterProjects]);
 
   const handleProjectClick = (project) => {
+    console.log('🔗 Navigating to project:', project);
+    console.log('🔗 Project ID:', project.id, 'Type:', typeof project.id);
+    console.log('🔗 Project projectId:', project.projectId, 'Type:', typeof project.projectId);
+    
     setCurrentProject(project);
-    navigate(`/projects/${project.id}`);
+    
+    // Use projectId if available, fallback to id
+    const projectId = project.projectId || project.id;
+    console.log('🔗 Using project ID for navigation:', projectId);
+    
+    navigate(`/projects/${projectId}`);
   };
 
-  const getProgressPercentage = () => {
-    // Since API doesn't provide completed tasks info, return 0% for now
-    // This can be updated when we have task status API
-    return 0;
+  const getProgressPercentage = (project) => {
+    // Add null/undefined check
+    if (!project) return 0;
+    
+    // Calculate progress based on project task stats if available
+    const totalTasks = project.taskCount || 0;
+    const completedTasks = project.completedTasks || 0;
+    
+    if (totalTasks === 0) return 0;
+    return Math.round((completedTasks / totalTasks) * 100);
   };
 
   return (
@@ -208,9 +251,9 @@ export default function ProjectList() {
       {/* Projects Grid/List */}
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
+          {filteredProjects.filter(Boolean).map((project) => project && (
             <div
-              key={project.id}
+              key={project.id || project.projectId}
               onClick={() => handleProjectClick(project)}
               className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer border border-gray-200"
             >
@@ -254,13 +297,13 @@ export default function ProjectList() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-700">Tiến độ</span>
                     <span className="text-sm text-gray-600">
-                      {getProgressPercentage()}%
+                      {getProgressPercentage(project)}%
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${getProgressPercentage()}%` }}
+                      style={{ width: `${getProgressPercentage(project)}%` }}
                     ></div>
                   </div>
                 </div>
@@ -275,13 +318,13 @@ export default function ProjectList() {
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-green-600">
-                      0
+                      {project.completedTasks || 0}
                     </div>
                     <div className="text-xs text-gray-500">Hoàn thành</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-semibold text-blue-600">
-                      0
+                      {project.inProgressTasks || 0}
                     </div>
                     <div className="text-xs text-gray-500">Đang làm</div>
                   </div>
@@ -327,9 +370,9 @@ export default function ProjectList() {
         // List View
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {filteredProjects.map((project) => (
+            {filteredProjects.filter(Boolean).map((project) => project && (
               <li
-                key={project.id}
+                key={project.id || project.projectId}
                 onClick={() => handleProjectClick(project)}
                 className="hover:bg-gray-50 cursor-pointer"
               >
@@ -362,14 +405,14 @@ export default function ProjectList() {
                     <div className="flex items-center space-x-6">
                       {/* Progress */}
                       <div className="flex items-center space-x-2">
-                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div
-                            className="bg-primary-600 h-2 rounded-full"
-                            style={{ width: `${getProgressPercentage()}%` }}
+                            className="bg-primary-600 h-2 rounded-full transition-all"
+                            style={{ width: `${getProgressPercentage(project)}%` }}
                           ></div>
                         </div>
-                        <span className="text-sm text-gray-600 w-10">
-                          {getProgressPercentage()}%
+                        <span className="text-sm text-gray-600">
+                          {getProgressPercentage(project)}%
                         </span>
                       </div>
 

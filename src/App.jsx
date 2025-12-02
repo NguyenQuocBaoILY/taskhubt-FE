@@ -13,6 +13,7 @@ import ProjectList from './pages/ProjectList';
 import ProjectDetail from './pages/ProjectDetail';
 import TaskBoard from './pages/TaskBoard';
 import TaskPage from './pages/TaskPage';
+import TaskDetail from './pages/TaskDetail';
 import Navbar from './components/Navbar';
 // Admin imports
 import AdminLayout from './admin/components/AdminLayout';
@@ -156,6 +157,7 @@ function AppContent() {
           <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="projects/:id/board" element={<TaskBoard />} />
           <Route path="tasks" element={<TaskPage />} />
+          <Route path="tasks/:taskId" element={<TaskDetail />} />
           <Route
             path="profile"
             element={

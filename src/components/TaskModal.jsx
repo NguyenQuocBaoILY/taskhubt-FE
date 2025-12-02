@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { taskAPI } from '../services/api';
+import { taskAPI, userAPI } from '../services/api';
 
 // Status = mức độ hoàn thành công việc
 const statuses = [
@@ -26,6 +26,28 @@ export default function TaskModal({
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Load users when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadUsers();
+    }
+  }, [isOpen]);
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await userAPI.getUsers();
+      setUsers(response.data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   // Khi mở modal hoặc đổi task → fill lại form
   useEffect(() => {
@@ -95,30 +117,83 @@ export default function TaskModal({
       setIsSubmitting(true);
 
       const projectId = project.projectId || project.id;
+      
+      // Lấy thông tin user hiện tại từ localStorage hoặc context
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
 
-      // Map đúng model backend mà bạn yêu cầu
+      if (!userId) {
+        alert('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      console.log('🔍 Task creation info:', { projectId, userId, currentUser });
+
+      // Map đúng model backend theo API schema
+      const selectedUser = users.find(user => user.userId === formData.assignee);
+      
       const payload = {
-        taskId: task?.taskId ?? crypto.randomUUID(),
-        projectId,
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description?.trim() || '',
         status: formData.status,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        priority: 'medium', // Default priority
         assignee: formData.assignee,
+        assigneeName: selectedUser ? (selectedUser.name || selectedUser.username) : null,
+        dueDate: formData.endDate, // Map endDate to dueDate
       };
 
+      console.log('🎯 TaskModal submitting payload:', payload);
+
       if (task?.taskId) {
-        await taskAPI.updateTask(task.taskId, payload);
+        // Update existing task - include existing metadata
+        const updatePayload = {
+          ...payload,
+          taskId: task.taskId,
+          createdAt: task.createdAt, // Preserve existing createdAt
+          assignedAt: task.assignedAt || new Date().toISOString(), // Preserve or set assignedAt
+        };
+        await taskAPI.updateTask(task.taskId, updatePayload, projectId);
       } else {
-        await taskAPI.createTask(payload);
+        // Create new task using POST /api/task endpoint
+        await taskAPI.createTask(payload, projectId, userId);
       }
 
       if (onSubmit) onSubmit(payload);
       onClose();
+      
+      // Show success message
+      alert(task ? 'Cập nhật task thành công!' : 'Tạo task mới thành công!');
+      
     } catch (error) {
       console.error('Error submitting task:', error);
-      alert('Gửi task lên server thất bại, xem console để biết chi tiết.');
+      
+      // Log detailed error information for debugging
+      console.error('Detailed error info:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          params: error.config?.params,
+          data: error.config?.data
+        }
+      });
+      
+      // Show user-friendly error message
+      let errorMessage = 'Lỗi không xác định';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.title) {
+        errorMessage = error.response.data.title;
+      } else if (error.response?.data) {
+        errorMessage = JSON.stringify(error.response.data);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Gửi task lên server thất bại: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -207,14 +282,17 @@ export default function TaskModal({
                   name="assignee"
                   value={formData.assignee}
                   onChange={handleChange}
+                  disabled={loadingUsers}
                   className={`mt-1 block w-full px-3 py-2 border ${
                     errors.assignee ? 'border-red-300' : 'border-gray-300'
                   } bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                 >
-                  <option value="">Chọn người phụ trách</option>
-                  {project?.members?.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name} ({member.role})
+                  <option value="">
+                    {loadingUsers ? 'Đang tải danh sách người dùng...' : 'Chọn người phụ trách'}
+                  </option>
+                  {users.map((user) => (
+                    <option key={user.userId || user.id} value={user.userId || user.id}>
+                      {user.name || user.username} {user.email ? `(${user.email})` : ''}
                     </option>
                   ))}
                 </select>

@@ -57,15 +57,21 @@ export default function Dashboard() {
       let allTasks = [];
       for (const project of userProjects.slice(0, 3)) { // Limit to first 3 projects for performance
         try {
-          const tasksRes = await taskAPI.getProjectTasks(project.id);
-          const tasks = tasksRes.data || [];
-          allTasks = [...allTasks, ...tasks.map(task => ({
-            ...task,
-            projectName: project.name,
-            projectId: project.id
-          }))];
+          // Get current user info
+          const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+          const userId = currentUser.userId || currentUser.id;
+          
+          if (userId) {
+            const tasksRes = await taskAPI.getProjectTasks(project.id, userId);
+            const tasks = tasksRes.data || [];
+            allTasks = [...allTasks, ...tasks.map(task => ({
+              ...task,
+              projectName: project.name,
+              projectId: project.id
+            }))];
+          }
         } catch (error) {
-          console.warn(`Cannot load tasks for project ${project.id}`);
+          console.warn('Cannot load tasks for project', project.id, error.message);
         }
       }
 

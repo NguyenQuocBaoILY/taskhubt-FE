@@ -16,7 +16,7 @@ import {
 import { useApp } from '../hooks/useContext';
 import ProjectModal from '../components/ProjectModal';
 import TaskModal from '../components/TaskModal';
-import { projectAPI, taskAPI } from '../services/api';
+import { projectAPI, taskAPI, enrichTasksWithAssigneeNames } from '../services/api';
 import toast from 'react-hot-toast';
 
 const statusConfig = {
@@ -33,9 +33,11 @@ const priorityConfig = {
 };
 
 const taskStatusConfig = {
-  pending: { label: 'Chờ thực hiện', color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
+  'not-started': { label: 'Chưa bắt đầu', color: 'bg-gray-100 text-gray-800', icon: ClockIcon },
   'in-progress': { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800', icon: ChartBarIcon },
-  completed: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
+  'completed': { label: 'Hoàn thành', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
+  // Legacy support
+  'pending': { label: 'Chờ thực hiện', color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
 };
 
 export default function ProjectDetail() {
@@ -46,6 +48,7 @@ export default function ProjectDetail() {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -53,11 +56,21 @@ export default function ProjectDetail() {
   useEffect(() => {
     const fetchProjectDetail = async () => {
       try {
-        console.log('📁 Loading project details from API...');
+        setLoading(true);
+        console.log('📁 Loading project details from API for project ID:', id);
+        
+        // Validate project ID
+        if (!id) {
+          console.error('❌ No project ID provided');
+          toast.error('ID dự án không hợp lệ');
+          navigate('/projects');
+          return;
+        }
         
         // Load project details
         const projectRes = await projectAPI.getProject(id);
         const project = projectRes.data;
+        console.log('📊 Project data received:', project);
         setProject(project);
         
         // Load project members for display
@@ -67,16 +80,31 @@ export default function ProjectDetail() {
           setMembers(members);
           console.log('✅ Members loaded successfully:', members.length, members);
         } catch (memberError) {
-          console.warn('⚠️ Failed to load project members:', memberError);
+          console.warn('⚠️ Failed to load project members:', memberError.message);
           setMembers([]); // Set empty array if members fail to load
         }
         
         console.log('✅ Project details and members loaded from API');
       } catch (error) {
         console.error('❌ Lỗi tải chi tiết dự án:', error);
-        toast.error('Không thể tải thông tin dự án.');
+        console.error('❌ Error details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        
+        let errorMessage = 'Không thể tải thông tin dự án.';
+        if (error.response?.status === 404) {
+          errorMessage = 'Dự án không tồn tại hoặc bạn không có quyền truy cập.';
+        } else if (error.response?.status === 403) {
+          errorMessage = 'Bạn không có quyền truy cập dự án này.';
+        }
+        
+        toast.error(errorMessage);
         // Navigate back to projects list on error
         navigate('/projects');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -96,10 +124,24 @@ export default function ProjectDetail() {
   const fetchProjectTasks = useCallback(async () => {
     try {
       console.log('📋 Loading project tasks...');
-      const tasksRes = await taskAPI.getProjectTasks(id);
-      const tasks = tasksRes.data || [];
-      setTasks(tasks);
-      console.log('✅ Tasks loaded:', tasks.length);
+      
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      if (!userId) {
+        console.warn('⚠️ No userId found in localStorage');
+        setTasks([]);
+        return;
+      }
+      
+      const tasksRes = await taskAPI.getProjectTasks(id, userId);
+      const rawTasks = tasksRes.data || [];
+      
+      // Enrich tasks with assignee names
+      const enrichedTasks = await enrichTasksWithAssigneeNames(rawTasks);
+      setTasks(enrichedTasks);
+      console.log('✅ Tasks loaded with assignee names:', enrichedTasks.length);
     } catch (error) {
       console.warn('⚠️ Cannot load tasks from API:', error.message);
       setTasks([]); // Set empty array instead of mock data
@@ -107,12 +149,12 @@ export default function ProjectDetail() {
     }
   }, [id]);
 
-  // Load tasks only when user switches to tasks tab
+  // Load tasks when component mounts to show statistics immediately
   useEffect(() => {
-    if (activeTab === 'tasks' && id) {
+    if (id) {
       fetchProjectTasks();
     }
-  }, [activeTab, id, fetchProjectTasks]);
+  }, [id, fetchProjectTasks]);
 
   const handleUpdateProject = async (projectData) => {
     try {
@@ -149,13 +191,37 @@ export default function ProjectDetail() {
   };
 
   const getProgressPercentage = () => {
-    // Since API doesn't provide task status breakdown, return 0% for now
-    return 0;
+    if (tasks.length === 0) return 0;
+    const completedTasks = tasks.filter(task => task.status === 'completed').length;
+    return Math.round((completedTasks / tasks.length) * 100);
   };
+
+  // Calculate task statistics
+  const getTaskStats = () => {
+    const total = tasks.length;
+    const completed = tasks.filter(task => task.status === 'completed').length;
+    const inProgress = tasks.filter(task => task.status === 'in-progress').length;
+    const notStarted = tasks.filter(task => task.status === 'not-started' || !task.status).length;
+    
+    return { total, completed, inProgress, notStarted };
+  };
+
+  const taskStats = getTaskStats();
 
   const isOverdue = (dueDate) => {
     return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải thông tin dự án...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (
@@ -212,12 +278,16 @@ export default function ProjectDetail() {
                       <div className="flex items-center space-x-4 mt-1">
                         <span className="text-sm text-gray-500">{project.key}</span>
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[project.status].color}`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            statusConfig[project.status]?.color || 'bg-gray-100 text-gray-800'
+                          }`}
                         >
-                          {statusConfig[project.status].label}
+                          {statusConfig[project.status]?.label || project.status || 'Không xác định'}
                         </span>
-                        <span className={`text-sm font-medium ${priorityConfig[project.priority].color}`}>
-                          Mức độ: {priorityConfig[project.priority].label}
+                        <span className={`text-sm font-medium ${
+                          priorityConfig[project.priority]?.color || 'text-gray-600'
+                        }`}>
+                          Mức độ: {priorityConfig[project.priority]?.label || project.priority || 'Trung bình'}
                         </span>
                       </div>
                     </div>
@@ -304,7 +374,7 @@ export default function ProjectDetail() {
                   <ChartBarIcon className="h-8 w-8 text-blue-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Tổng tasks</p>
-                    <p className="text-2xl font-bold text-gray-900">{project.tasks.total}</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
                   </div>
                 </div>
               </div>
@@ -314,7 +384,7 @@ export default function ProjectDetail() {
                   <CheckCircleIcon className="h-8 w-8 text-green-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Hoàn thành</p>
-                    <p className="text-2xl font-bold text-gray-900">{project.tasks.completed}</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.completed}</p>
                   </div>
                 </div>
               </div>
@@ -324,7 +394,7 @@ export default function ProjectDetail() {
                   <ClockIcon className="h-8 w-8 text-yellow-600" />
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Đang làm</p>
-                    <p className="text-2xl font-bold text-gray-900">{project.tasks.inProgress}</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.inProgress}</p>
                   </div>
                 </div>
               </div>
@@ -349,8 +419,8 @@ export default function ProjectDetail() {
                   style={{ width: `${getProgressPercentage()}%` }}
                 ></div>
               </div>
-              <p className="text-sm text-gray-600">
-                {getProgressPercentage()}% hoàn thành (0/{project.taskCount || 0} tasks)
+              <p className="text-sm text-gray-600 mt-2">
+                {getProgressPercentage()}% hoàn thành ({taskStats.completed}/{taskStats.total} tasks)
               </p>
             </div>
 
@@ -404,7 +474,11 @@ export default function ProjectDetail() {
             <div className="space-y-4">
               {tasks.map((task) => (
                 <div
-                  key={task.id}
+                  key={task.taskId || task.id || Math.random()}
+                  onClick={() => {
+                    console.log('🎯 Task clicked:', task);
+                    navigate(`/tasks/${task.taskId || task.id}?projectId=${project.projectId || project.id}`);
+                  }}
                   className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                 >
                   <div className="flex items-center justify-between">
@@ -412,23 +486,33 @@ export default function ProjectDetail() {
                       <div className="flex items-center space-x-3">
                         <h4 className="text-lg font-medium text-gray-900">{task.title}</h4>
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${taskStatusConfig[task.status].color}`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            taskStatusConfig[task.status]?.color || 'bg-gray-100 text-gray-800'
+                          }`}
                         >
-                          {taskStatusConfig[task.status].label}
+                          {taskStatusConfig[task.status]?.label || task.status || 'Không xác định'}
                         </span>
-                        <span className={`text-sm font-medium ${priorityConfig[task.priority].color}`}>
-                          {priorityConfig[task.priority].label}
+                        <span className={`text-sm font-medium ${
+                          priorityConfig[task.priority]?.color || 'text-gray-600'
+                        }`}>
+                          {priorityConfig[task.priority]?.label || task.priority || 'Trung bình'}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">{task.description}</p>
                       <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500">
-                        <span>Giao cho: {task.assignee.name}</span>
-                        <span>
-                          Hạn: {new Date(task.dueDate).toLocaleDateString('vi-VN')}
-                          {isOverdue(task.dueDate) && task.status !== 'completed' && (
-                            <ExclamationTriangleIcon className="inline h-4 w-4 text-red-500 ml-1" />
-                          )}
-                        </span>
+                        <div className="flex items-center space-x-1">
+                          <UserGroupIcon className="h-3 w-3" />
+                          <span>Giao cho: {task.assigneeName || task.assignee || 'Chưa phân công'}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <CalendarDaysIcon className="h-3 w-3" />
+                          <span>
+                            Hạn: {task.dueDate ? new Date(task.dueDate).toLocaleDateString('vi-VN') : 'Chưa có hạn'}
+                            {task.dueDate && isOverdue(task.dueDate) && task.status !== 'completed' && (
+                              <ExclamationTriangleIcon className="inline h-4 w-4 text-red-500 ml-1" />
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

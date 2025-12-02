@@ -107,6 +107,9 @@ export const userAPI = {
   // 2. Lấy danh sách project của một user cụ thể
   getUserProjects: (userId) => api.get(`/api/users/${userId}/projects`),
   
+  // 3. Lấy thông tin user theo ID
+  getUserById: (userId) => api.get(`/api/users/${userId}`),
+  
   // Lấy thông tin user hiện tại (sử dụng auth service)
   getCurrentUser: () => api.get('/api/Auth/me'),
 };
@@ -478,38 +481,160 @@ export const projectAPI = {
   },
 };
 
-// Task API endpoints - Optimized for specific project needs
+// Task API endpoints - Updated to match backend controller
 export const taskAPI = {
-  // Get tasks for a specific project only (to reduce unnecessary API calls)
-  getProjectTasks: (projectId, params = {}) => {
-    return api.get(`/api/projects/${projectId}/tasks`, { params });
+  // Get tasks for a specific project (GET /api/task)
+  getProjectTasks: (projectId, userId, params = {}) => {
+    const queryParams = {
+      projectId,
+      userId,
+      ...params // status, assignee
+    };
+    return api.get('/api/task', { params: queryParams });
   },
 
-  // Get specific task details
-  getTask: (taskId) => api.get(`/api/tasks/${taskId}`),
+  // Get specific task details (GET /api/task/{taskId})
+  getTask: (taskId, projectId, userId) => {
+    const queryParams = { projectId, userId };
+    return api.get(`/api/task/${taskId}`, { params: queryParams });
+  },
   
-  // Create task in project
-  createTask: (projectId, taskData) => {
+  // Create task using POST /api/task endpoint
+  createTask: (taskData, projectId = null, userId = null) => {
+    console.log('📝 Creating task with data:', taskData);
+    
+    const finalProjectId = projectId || taskData.projectId;
+    const finalUserId = userId || taskData.userId || taskData.assignee;
+    const taskId = taskData.taskId || crypto.randomUUID();
+    const now = new Date().toISOString();
+    
+    // Create payload matching backend API schema with all required DynamoDB fields
     const taskPayload = {
+      // DynamoDB keys
+      pk: `TASK#${taskId}`,
+      sk: `TASK#${taskId}`,
+      entityType: "TASK",
+      
+      // Core task fields
+      projectId: finalProjectId,
+      taskId: taskId,
       title: taskData.title,
-      description: taskData.description,
-      status: taskData.status || 'pending',
+      description: taskData.description || '',
+      assignee: taskData.assignee || finalUserId,
+      assignedAt: now,
+      dueDate: taskData.dueDate || taskData.endDate || '',
+      status: taskData.status || 'not-started',
       priority: taskData.priority || 'medium',
-      assigneeId: taskData.assigneeId,
-      dueDate: taskData.dueDate,
-      // Add other fields as needed
+      createdAt: now,
+      updatedAt: now,
+      
+      // GSI fields for indexing
+      gsI3PK: `PROJECT#${finalProjectId}`,
+      gsI3SK: `TASK#${taskId}`,
+      gsI4PK: `USER#${finalUserId}`,
+      gsI4SK: `TASK#${taskId}`,
+      gsI5PK: `STATUS#${taskData.status || 'not-started'}`,
+      gsI5SK: `TASK#${taskId}`
     };
-    return api.post(`/api/projects/${projectId}/tasks`, taskPayload);
+    
+    console.log('📤 Sending task payload to POST /api/task:', taskPayload);
+    
+    // Query params for projectId and userId
+    const params = {};
+    if (finalProjectId) params.projectId = finalProjectId;
+    if (finalUserId) params.userId = finalUserId;
+    
+    return api.post('/api/task', taskPayload, { params }).then(response => {
+      console.log('✅ Task creation success:', response.status);
+      console.log('📊 Task response data:', response.data);
+      return response;
+    }).catch(error => {
+      console.error('❌ Task creation failed:', error.response?.data || error.message);
+      throw error;
+    });
   },
   
-  // Update task
-  updateTask: (taskId, taskData) => {
-    return api.put(`/api/tasks/${taskId}`, taskData);
+  // Update task (PUT /api/task/{taskId})
+  updateTask: (taskId, taskData, projectId) => {
+    console.log('📝 Updating task:', { taskId, taskData, projectId });
+    
+    const now = new Date().toISOString();
+    
+    // Create full payload with all DynamoDB fields for update
+    const updatePayload = {
+      // DynamoDB keys
+      pk: `TASK#${taskId}`,
+      sk: `TASK#${taskId}`,
+      entityType: "TASK",
+      
+      // Core task fields
+      projectId: projectId || taskData.projectId,
+      taskId: taskId,
+      title: taskData.title,
+      description: taskData.description || '',
+      assignee: taskData.assignee,
+      assignedAt: taskData.assignedAt || now,
+      dueDate: taskData.dueDate || taskData.endDate || '',
+      status: taskData.status,
+      priority: taskData.priority || 'medium',
+      createdAt: taskData.createdAt || now,
+      updatedAt: now,
+      
+      // GSI fields for indexing
+      gsI3PK: `PROJECT#${projectId || taskData.projectId}`,
+      gsI3SK: `TASK#${taskId}`,
+      gsI4PK: `USER#${taskData.assignee}`,
+      gsI4SK: `TASK#${taskId}`,
+      gsI5PK: `STATUS#${taskData.status}`,
+      gsI5SK: `TASK#${taskId}`
+    };
+    
+    const params = {};
+    if (projectId) params.projectId = projectId;
+    
+    return api.put(`/api/task/${taskId}`, updatePayload, { params });
   },
   
-  // Delete task
-  deleteTask: (taskId) => {
-    return api.delete(`/api/tasks/${taskId}`);
+  // Update task status only (PATCH /api/task/{taskId}/status)
+  updateTaskStatus: (taskId, projectId, status) => {
+    const params = { projectId };
+    // According to API spec, body should be just the status string, not an object
+    return api.patch(`/api/task/${taskId}/status`, status, { 
+      params,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  },
+  
+  // Delete task (DELETE /api/task/{taskId})
+  deleteTask: (taskId, projectId) => {
+    const params = { projectId };
+    return api.delete(`/api/task/${taskId}`, { params });
+  },
+
+  // Task files management
+  getTaskFiles: (taskId, projectId, userId) => {
+    const params = { projectId, userId };
+    return api.get(`/api/task/${taskId}/files`, { params });
+  },
+
+  uploadTaskFile: (taskId, projectId, userId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const params = { projectId, userId };
+    
+    return api.post(`/api/task/${taskId}/files`, formData, {
+      params,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  deleteTaskFile: (taskId, fileId) => {
+    return api.delete(`/api/task/${taskId}/files/${fileId}`);
   },
 };
 
@@ -554,5 +679,43 @@ export const dashboardAPI = {
         }
       };
     });
+  }
+};
+
+// Helper functions để enrich tasks với assignee names
+export const enrichTasksWithAssigneeNames = async (tasks) => {
+  if (!tasks || !Array.isArray(tasks)) return tasks;
+  
+  // Lấy danh sách unique assignee IDs
+  const assigneeIds = [...new Set(
+    tasks
+      .map(task => task.assignee)
+      .filter(assignee => assignee && typeof assignee === 'string')
+  )];
+  
+  if (assigneeIds.length === 0) return tasks;
+  
+  try {
+    // Fetch thông tin users
+    const usersResponse = await userAPI.getUsers();
+    const users = usersResponse.data || [];
+    
+    // Tạo map userId -> user info
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user.userId] = user;
+    });
+    
+    // Enrich tasks với assignee names
+    return tasks.map(task => ({
+      ...task,
+      assigneeName: task.assignee && userMap[task.assignee] 
+        ? userMap[task.assignee].name || userMap[task.assignee].username
+        : null
+    }));
+    
+  } catch (error) {
+    console.warn('Failed to fetch assignee names:', error);
+    return tasks;
   }
 };

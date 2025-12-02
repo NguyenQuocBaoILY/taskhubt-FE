@@ -95,11 +95,22 @@ export default function AdminProjectDetail() {
   // Load tasks only when tasks tab is active to avoid unnecessary API calls
   const fetchProjectTasks = useCallback(async () => {
     try {
-      console.log('📋 Admin loading project tasks...');
-      const tasksRes = await taskAPI.getProjectTasks(id);
+      console.log('📋 Loading project tasks...');
+      
+      // Get current user info for admin
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      if (!userId) {
+        console.warn('⚠️ No userId found in localStorage');
+        setTasks([]);
+        return;
+      }
+      
+      const tasksRes = await taskAPI.getProjectTasks(id, userId);
       const tasks = tasksRes.data || [];
       setTasks(tasks);
-      console.log('✅ Admin tasks loaded:', tasks.length);
+      console.log('✅ Tasks loaded:', tasks.length);
     } catch (error) {
       console.warn('⚠️ Cannot load tasks from API:', error.message);
       setTasks([]); // Set empty array instead of mock data
