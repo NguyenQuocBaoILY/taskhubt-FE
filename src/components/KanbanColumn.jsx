@@ -57,4 +57,5 @@ export default function KanbanColumn({ column, tasks, onTaskClick, onTaskEdit, o
       </div>
     </div>
   );
+  //
 }
