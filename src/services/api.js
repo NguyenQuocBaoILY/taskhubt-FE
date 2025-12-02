@@ -267,7 +267,7 @@ export const projectAPI = {
         throw new Error('Project not found');
       }
       
-      // Transform API response to UI format
+      // Transform API response to UI format  
       const transformedProject = {
         id: project.projectId,
         projectId: project.projectId,
@@ -282,6 +282,11 @@ export const projectAPI = {
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
         ownerUserId: project.ownerUserId,
+        // Preserve API fields for updates
+        pk: project.pk,
+        sk: project.sk,
+        gsI4PK: project.gsI4PK,
+        gsI4SK: project.gsI4SK,
         // Default structure for compatibility
         tasks: {
           total: project.taskCount || 0,
@@ -308,7 +313,7 @@ export const projectAPI = {
   createProject: (projectData) => {
     console.log('📝 Creating project with payload:', projectData);
     
-    // Create payload for POST /api/projects with new simplified schema
+    // Create payload for POST /api/projects matching API schema
     const projectPayload = {
       nameProject: projectData.nameProject,
       descriptionP: projectData.descriptionP,
@@ -345,37 +350,38 @@ export const projectAPI = {
   },
   
   updateProject: (projectId, projectData) => {
-    // Get userID from stored user info
-    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-    const userId = userInfo.userId;
+    console.log('📝 Updating project:', { projectId, projectData });
     
-    console.log('📝 Updating project:', { projectId, projectData, userId, userInfo });
-    
-    // Create payload for PUT /api/projects/by-id/{projectId} with full schema
+    // Create payload with ALL required fields from API schema
     const updatePayload = {
-      projectId: projectData.projectId,
-      orgId: projectData.orgId || "string",
+      // Required DynamoDB keys
+      pk: "PROJECT",
+      sk: `PROJECT#${projectId}`,
+      projectId: projectId,
+      
+      // Core project fields
       name: projectData.name,
-      key: projectData.key || "string", 
       description: projectData.description || '',
-      status: projectData.status || 'ACTIVE',
-      visibility: projectData.visibility || "string",
-      ownerUserId: projectData.ownerUserId || userId,
-      avatar: projectData.avatar || null,
-      taskCount: projectData.taskCount || 0,
-      memberCount: projectData.memberCount || 0,
-      priority: projectData.priority || 'medium',
-      startDate: projectData.startDate ? new Date(projectData.startDate).toISOString() : new Date().toISOString(),
-      endDate: projectData.endDate ? new Date(projectData.endDate).toISOString() : null,
+      
+      // Required fields with proper defaults
+      ownerUserId: projectData.ownerUserId || "system",
+      taskCount: parseInt(projectData.taskCount) || 0,
+      memberCount: parseInt(projectData.memberCount) || 0,
+      
+      // Date fields
+      startDate: projectData.startDate,
+      endDate: projectData.endDate,
       createdAt: projectData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      gsI4PK: projectData.gsI4PK || `USER#${userId}`,
-      gsI4SK: projectData.gsI4SK || `PROJECT#${projectData.projectId}`
+      
+      // Required GSI fields
+      gsI4PK: projectData.gsI4PK || `USER#${projectData.ownerUserId || "system"}`,
+      gsI4SK: projectData.gsI4SK || `PROJECT#${projectId}`
     };
     
-    console.log('📤 Sending update payload to PUT /api/projects/by-id/' + projectId + ':', updatePayload);
+    console.log('📤 Sending update payload to PUT /api/projects/' + projectId + ':', updatePayload);
     
-    return api.put(`/api/projects/by-id/${projectId}`, updatePayload).then(response => {
+    return api.put(`/api/projects/${projectId}`, updatePayload).then(response => {
       console.log('✅ Project update success:', response.status);
       console.log('📊 Update response data:', response.data);
       return response;
@@ -383,6 +389,16 @@ export const projectAPI = {
       console.error('❌ Error updating project:', error);
       console.error('❌ Error response data:', error.response?.data);
       console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error headers:', error.response?.headers);
+      console.error('❌ Full error response:', error.response);
+      
+      // Log validation errors if available
+      if (error.response?.data?.errors) {
+        console.error('❌ Validation errors:', error.response.data.errors);
+      }
+      
+      // Log the exact payload that failed
+      console.error('❌ Failed payload was:', updatePayload);
       throw error;
     });
   },

@@ -109,7 +109,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Admin</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Thống kê ADMIN</h1>
         <p className="mt-2 text-sm text-gray-600">
           Tổng quan hệ thống TaskHub
         </p>

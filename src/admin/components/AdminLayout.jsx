@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const adminNavigation = [
-  { name: 'Dashboard', href: '/admin', icon: HomeIcon },
+  { name: 'Thống kê ADMIN', href: '/admin', icon: HomeIcon },
   { name: 'Quản lý Dự án', href: '/admin/projects', icon: FolderIcon },
   { name: 'Quản lý Nhân viên', href: '/admin/users', icon: UserGroupIcon },
   { name: 'Thống kê', href: '/admin/analytics', icon: ChartBarIcon },

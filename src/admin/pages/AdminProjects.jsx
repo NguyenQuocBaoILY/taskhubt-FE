@@ -33,10 +33,46 @@ export default function AdminProjects() {
   const fetchProjects = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('📁 Admin loading all projects from GET /api/projects...');
+      console.log('📁 Admin loading projects with search:', debouncedSearchTerm || 'all');
       const response = await projectAPI.getAllProjects(debouncedSearchTerm);
-      setProjects(response.data || []);
-      console.log('✅ Admin projects loaded:', response.data?.length || 0);
+      const projectsData = response.data || [];
+      
+      // Only load managers when not searching (to avoid too many API calls)
+      if (!debouncedSearchTerm && projectsData.length <= 20) {
+        console.log('👥 Loading managers for projects...');
+        // Load managers for each project
+        const projectsWithManagers = await Promise.all(
+          projectsData.map(async (project) => {
+            try {
+              const membersRes = await projectAPI.getProjectMembers(project.id);
+              const members = membersRes.data || [];
+              
+              // Find manager in members list
+              const manager = members.find(member => member.role === 'manager');
+              
+              return {
+                ...project,
+                manager: manager ? {
+                  id: manager.id,
+                  name: manager.name || manager.email,
+                  email: manager.email
+                } : null
+              };
+            } catch (error) {
+              console.warn(`⚠️ Could not load members for project ${project.id}:`, error.message);
+              return { ...project, manager: null };
+            }
+          })
+        );
+        
+        setProjects(projectsWithManagers);
+        console.log('✅ Projects loaded with managers:', projectsWithManagers.length);
+      } else {
+        // When searching, just show projects without managers to be fast
+        console.log('⚡ Fast search mode - showing projects without manager details');
+        setProjects(projectsData);
+        console.log('✅ Projects loaded (search mode):', projectsData.length);
+      }
     } catch (error) {
       console.error('❌ Error fetching projects:', error);
       toast.error('Không thể tải danh sách dự án');
@@ -138,16 +174,24 @@ export default function AdminProjects() {
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tìm kiếm dự án theo tên
+            </label>
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm kiếm tên dự án hoặc mô tả..."
+                placeholder="Tìm kiếm theo tên dự án..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
               />
             </div>
+            {searchTerm && (
+              <p className="mt-1 text-sm text-gray-500">
+                Đang tìm kiếm: "<span className="font-medium">{searchTerm}</span>"
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -213,7 +257,9 @@ export default function AdminProjects() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{project.lead?.name || 'Chưa gán'}</div>
+                  <div className="text-sm text-gray-900">
+                    {project.manager?.name || project.lead?.name || 'Chưa gán'}
+                  </div>
                   <div className="text-sm text-gray-500">Quản lý dự án</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

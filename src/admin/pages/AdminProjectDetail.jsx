@@ -116,7 +116,34 @@ export default function AdminProjectDetail() {
   const handleUpdateProject = async (projectData) => {
     try {
       console.log('📝 Admin updating project:', projectData);
-      await projectAPI.updateProject(project.id, projectData);
+      console.log('📝 Current project object:', project);
+      
+      // Use projectId if available, fallback to id
+      const projectIdToUse = project.projectId || project.id || id;
+      console.log('📝 Using projectId:', projectIdToUse);
+      
+      // Transform the form data to API format with ALL existing project data
+      const apiData = {
+        name: projectData.nameProject || projectData.name,
+        description: projectData.descriptionP || projectData.description,
+        startDate: projectData.startDate,
+        endDate: projectData.endDate,
+        // Preserve ALL existing project data
+        ownerUserId: project.ownerUserId,
+        taskCount: project.taskCount || 0,
+        memberCount: project.memberCount || 0,
+        createdAt: project.createdAt,
+        projectId: projectIdToUse,
+        // Include DynamoDB keys from existing project
+        pk: project.pk,
+        sk: project.sk,
+        gsI4PK: project.gsI4PK,
+        gsI4SK: project.gsI4SK
+      };
+      
+      console.log('📝 Transformed API data:', apiData);
+      
+      await projectAPI.updateProject(projectIdToUse, apiData);
       
       // Refresh project data
       const projectRes = await projectAPI.getProject(id);
@@ -412,7 +439,20 @@ export default function AdminProjectDetail() {
                 <dl className="space-y-3">
                   <div className="flex justify-between">
                     <dt className="text-sm font-medium text-gray-500">Project Lead:</dt>
-                    <dd className="text-sm text-gray-900">{project.lead?.name || 'Chưa gán'}</dd>
+                    <dd className="text-sm text-gray-900">
+                      {(() => {
+                        // Find manager from members list
+                        const manager = members.find(member => member.role === 'manager');
+                        if (manager) {
+                          return manager.name || manager.email || 'Manager';
+                        }
+                        // Fallback to project lead if available
+                        if (project.lead?.name) {
+                          return project.lead.name;
+                        }
+                        return 'Chưa gán';
+                      })()}
+                    </dd>
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-sm font-medium text-gray-500">Ngày tạo:</dt>
