@@ -59,11 +59,10 @@ export default function TaskDetail() {
   const [error, setError] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   
-  // File upload and completion states
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [showCompletionForm, setShowCompletionForm] = useState(false);
-  const [markAsCompleted, setMarkAsCompleted] = useState(false);
+  // Status update states
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     if (taskId) {
@@ -153,49 +152,35 @@ export default function TaskDetail() {
     setShowEditModal(false);
   };
 
-  // Handle file upload
-  const handleFileUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    
-    setUploadingFile(true);
-    try {
-      // TODO: Implement file upload API call
-      // For now, just show the completion form after upload
-      setSelectedFiles(Array.from(files));
-      setShowCompletionForm(true);
-    } catch (error) {
-      console.error('File upload failed:', error);
-      alert('Upload file thất bại. Vui lòng thử lại.');
-    } finally {
-      setUploadingFile(false);
-    }
+  // Handle status update
+  const handleStatusUpdate = () => {
+    setNewStatus(task.status);
+    setShowStatusModal(true);
   };
 
-  // Handle task completion
-  const handleTaskCompletion = async () => {
-    if (!task) {
-      setShowCompletionForm(false);
+  const handleStatusChange = async () => {
+    if (!task || !newStatus || newStatus === task.status) {
+      setShowStatusModal(false);
       return;
     }
 
     try {
+      setUpdatingStatus(true);
       const projectId = new URLSearchParams(window.location.search).get('projectId');
       
-      if (markAsCompleted) {
-        // Update task status to completed
-        await taskAPI.updateTaskStatus(task.taskId, projectId, 'completed');
-        
-        // Reload task data to reflect changes
-        loadTaskDetail();
-        
-        alert('Task đã được đánh dấu hoàn thành!');
-      }
+      // Update task status using PATCH API
+      await taskAPI.updateTaskStatus(task.taskId, projectId, newStatus);
       
-      setShowCompletionForm(false);
-      setMarkAsCompleted(false);
+      // Reload task data to reflect changes
+      loadTaskDetail();
+      
+      setShowStatusModal(false);
+      alert('Cập nhật trạng thái task thành công!');
     } catch (error) {
       console.error('Failed to update task status:', error);
       alert('Cập nhật trạng thái task thất bại.');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -287,6 +272,14 @@ export default function TaskDetail() {
         </div>
 
         <div className="flex items-center space-x-2">
+          <button
+            onClick={handleStatusUpdate}
+            className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+          >
+            <CheckCircleIcon className="h-4 w-4 mr-2" />
+            Tiến độ task
+          </button>
+          
           <button
             onClick={handleEditTask}
             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -407,28 +400,6 @@ export default function TaskDetail() {
       {/* Task Files */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Files đính kèm</h3>
-            <div>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => handleFileUpload(e.target.files)}
-                className="hidden"
-                id="file-upload"
-                disabled={uploadingFile}
-              />
-              <label
-                htmlFor="file-upload"
-                className={`cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ${
-                  uploadingFile ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {uploadingFile ? 'Đang upload...' : 'Upload Files'}
-              </label>
-            </div>
-          </div>
-          
           <TaskFiles 
             taskId={task.taskId}
             projectId={task.projectId}
@@ -437,42 +408,49 @@ export default function TaskDetail() {
         </div>
       </div>
 
-      {/* Task Completion Form */}
-      {showCompletionForm && (
+      {/* Status Update Modal */}
+      {showStatusModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Hoàn thành Task
+              Cập nhật tiến độ Task
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Files đã được upload thành công! Bạn có muốn đánh dấu task này là hoàn thành?
+              Tiến độ mới của task "{task?.title}"
             </p>
             
-            <div className="flex items-center mb-4">
-              <input
-                type="checkbox"
-                id="mark-completed"
-                checked={markAsCompleted}
-                onChange={(e) => setMarkAsCompleted(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="mark-completed" className="ml-2 text-sm text-gray-900">
-                Đánh dấu task hoàn thành
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Trạng thái
               </label>
+              <select
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={updatingStatus}
+              >
+                {Object.entries(statusConfig).map(([status, config]) => (
+                  <option key={status} value={status}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex justify-end space-x-3">
               <button
-                onClick={() => setShowCompletionForm(false)}
+                onClick={() => setShowStatusModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
+                disabled={updatingStatus}
               >
-                Bỏ qua
+                Hủy
               </button>
               <button
-                onClick={handleTaskCompletion}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                onClick={handleStatusChange}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+                disabled={updatingStatus || newStatus === task?.status}
               >
-                Xác nhận
+                {updatingStatus ? 'Đang cập nhật...' : 'Cập nhật'}
               </button>
             </div>
           </div>

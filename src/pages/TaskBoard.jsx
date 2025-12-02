@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -24,6 +24,7 @@ import KanbanColumn from '../components/KanbanColumn';
 import TaskCard from '../components/TaskCard';
 import TaskModal from '../components/TaskModal';
 import { useApp } from '../hooks/useContext';
+import { taskAPI, projectAPI, enrichTasksWithAssigneeNames } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Mock data cho tasks
@@ -161,6 +162,7 @@ const columns = [
 export default function TaskBoard() {
   const { id: projectId } = useParams();
   const { currentProject } = useApp();
+  const navigate = useNavigate();
   
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
@@ -181,13 +183,33 @@ export default function TaskBoard() {
   const fetchTasks = useCallback(async () => {
     try {
       setIsLoading(true);
-      // For now using mock data filtered by projectId
-      // const response = await tasksAPI.getTasks({ projectId });
-      // setTasks(response.data.data);
-      const projectTasks = mockTasks.filter(task => task.projectId.toString() === projectId);
-      setTasks(projectTasks);
-    } catch {
+      
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      if (!userId) {
+        console.warn('⚠️ No userId found in localStorage');
+        setTasks([]);
+        return;
+      }
+      
+      console.log('📊 Loading tasks for project:', projectId, 'user:', userId);
+      
+      // Fetch tasks from API
+      const response = await taskAPI.getProjectTasks(projectId, userId);
+      const rawTasks = response.data || [];
+      
+      // Enrich tasks with assignee names
+      const enrichedTasks = await enrichTasksWithAssigneeNames(rawTasks);
+      
+      setTasks(enrichedTasks);
+      console.log('✅ Tasks loaded for Kanban:', enrichedTasks.length);
+      
+    } catch (error) {
+      console.error('❌ Error loading tasks:', error);
       toast.error('Lỗi tải danh sách tasks');
+      setTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -198,9 +220,9 @@ export default function TaskBoard() {
 
     if (searchTerm) {
       filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.assignee.name.toLowerCase().includes(searchTerm.toLowerCase())
+        task.taskTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.assigneeName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -209,7 +231,7 @@ export default function TaskBoard() {
     }
 
     if (assigneeFilter) {
-      filtered = filtered.filter(task => task.assignee.id.toString() === assigneeFilter);
+      filtered = filtered.filter(task => task.assigneeId?.toString() === assigneeFilter);
     }
 
     setFilteredTasks(filtered);
@@ -312,10 +334,9 @@ export default function TaskBoard() {
 
   const handleCreateTask = async (taskData) => {
     try {
-      // const response = await tasksAPI.createTask({ ...taskData, projectId });
-      // setTasks([response.data.data, ...tasks]);
+      const response = await taskAPI.createTask(taskData);
       const newTask = {
-        id: Date.now(),
+        ...response.data,
         ...taskData,
         assignee: currentProject?.members.find(m => m.id === taskData.assigneeId),
         createdAt: new Date().toISOString().split('T')[0],
@@ -331,7 +352,22 @@ export default function TaskBoard() {
     }
   };
 
-  const uniqueAssignees = [...new Map(tasks.map(task => [task.assignee.id, task.assignee])).values()];
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await taskAPI.deleteTask(taskId);
+      setTasks(tasks.filter(task => task.taskId !== taskId));
+      toast.success('Xóa task thành công!');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Lỗi xóa task');
+    }
+  };
+
+  const uniqueAssignees = [...new Map(
+    tasks
+      .filter(task => task.assigneeName)
+      .map(task => [task.assigneeId, { id: task.assigneeId, name: task.assigneeName }])
+  ).values()];
 
   if (isLoading) {
     return (
@@ -435,6 +471,9 @@ export default function TaskBoard() {
                 key={column.id}
                 column={column}
                 tasks={getTasksByStatus(column.id)}
+                onTaskClick={(taskId) => navigate(`/projects/${projectId}/tasks/${taskId}`)}
+                onTaskEdit={(taskId) => navigate(`/projects/${projectId}/tasks/${taskId}`)}
+                onTaskDelete={handleDeleteTask}
               />
             ))}
           </div>
