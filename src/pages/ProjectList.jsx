@@ -3,27 +3,29 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
-  EllipsisVerticalIcon,
   FolderIcon,
   CalendarDaysIcon,
   UserGroupIcon,
   ChartBarIcon,
+  ArrowTrendingUpIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
 } from '@heroicons/react/24/outline';
 import { useApp } from '../hooks/useContext';
 import { projectAPI, taskAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 const statusConfig = {
-  active: { label: 'Đang thực hiện', color: 'bg-green-100 text-green-800' },
-  planning: { label: 'Lên kế hoạch', color: 'bg-yellow-100 text-yellow-800' },
-  completed: { label: 'Hoàn thành', color: 'bg-blue-100 text-blue-800' },
-  onhold: { label: 'Tạm dừng', color: 'bg-gray-100 text-gray-800' },
+  active: { label: 'Đang thực hiện', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  planning: { label: 'Lên kế hoạch', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  completed: { label: 'Hoàn thành', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  onhold: { label: 'Tạm dừng', color: 'bg-slate-50 text-slate-700 border-slate-200' },
 };
 
 const priorityConfig = {
   high: { label: 'Cao', color: 'text-red-600' },
-  medium: { label: 'Trung bình', color: 'text-yellow-600' },
-  low: { label: 'Thấp', color: 'text-green-600' },
+  medium: { label: 'Trung bình', color: 'text-amber-600' },
+  low: { label: 'Thấp', color: 'text-emerald-600' },
 };
 
 export default function ProjectList() {
@@ -43,9 +45,18 @@ export default function ProjectList() {
       
       // Get userId from stored user info
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-      const userId = userInfo.userId;
+      // Try multiple field names for userId
+      const userId = userInfo.userId || userInfo.id || userInfo.user_id;
+      
+      console.log('👤 ProjectList - User info:', userInfo);
+      console.log('🆔 ProjectList - Extracted userId:', userId);
       
       if (!userId) {
+        console.error('❌ ProjectList - No userId found in user_info:', userInfo);
+        // Try to get user ID from other localStorage keys as fallback
+        const userName = localStorage.getItem('user_name');
+        const userEmail = localStorage.getItem('user_email');
+        console.log('🔄 ProjectList Fallback - userName:', userName, 'userEmail:', userEmail);
         throw new Error('No userId found in user_info');
       }
       
@@ -156,31 +167,45 @@ export default function ProjectList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dự án</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Quản lý và theo dõi tất cả dự án của bạn
-          </p>
+      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-2xl mb-8">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-2xl"></div>
+        <div className="flex items-center justify-between relative">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
+              <FolderIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold mb-1">Dự án</h1>
+              <p className="text-slate-300 text-sm font-medium">
+                Quản lý và theo dõi tất cả dự án của bạn
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:block">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <ArrowTrendingUpIcon className="h-5 w-5" />
+              </div>
+            </div>
+          </div>
         </div>
-        {/* Note: Chỉ admin mới có thể tạo project từ trang admin */}
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-lg shadow-slate-200/50 mb-8">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
-              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Tìm kiếm dự án..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-200 focus:border-slate-400 transition-all bg-slate-50 focus:bg-white"
               />
             </div>
           </div>
@@ -190,7 +215,7 @@ export default function ProjectList() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-200 focus:border-slate-400 bg-slate-50 focus:bg-white transition-all min-w-[140px]"
             >
               <option value="">Tất cả trạng thái</option>
               {Object.entries(statusConfig).map(([key, config]) => (
@@ -206,7 +231,7 @@ export default function ProjectList() {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              className="px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-200 focus:border-slate-400 bg-slate-50 focus:bg-white transition-all min-w-[140px]"
             >
               <option value="">Tất cả mức độ</option>
               {Object.entries(priorityConfig).map(([key, config]) => (
@@ -218,33 +243,35 @@ export default function ProjectList() {
           </div>
 
           {/* View Toggle */}
-          <div className="flex border border-gray-300 rounded-md">
+          <div className="flex bg-slate-100 rounded-xl p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-2 text-sm font-medium ${
+              className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 viewMode === 'grid'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              } rounded-l-md border-r border-gray-300`}
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              Grid
+              <Squares2X2Icon className="h-4 w-4 mr-2" />
+              Lưới
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-2 text-sm font-medium ${
+              className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 viewMode === 'list'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              } rounded-r-md`}
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              List
+              <ListBulletIcon className="h-4 w-4 mr-2" />
+              Danh sách
             </button>
           </div>
         </div>
 
         {/* Results count */}
-        <div className="mt-4 text-sm text-gray-600">
-          Hiển thị {filteredProjects.length} trong số {projects.length} dự án
+        <div className="mt-4 text-sm font-medium text-slate-600">
+          Hiển thị <span className="text-slate-900">{filteredProjects.length}</span> trong số <span className="text-slate-900">{projects.length}</span> dự án
         </div>
       </div>
 
@@ -255,37 +282,32 @@ export default function ProjectList() {
             <div
               key={project.id || project.projectId}
               onClick={() => handleProjectClick(project)}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer border border-gray-200"
+              className="group bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-slate-300/50 transition-all duration-300 cursor-pointer overflow-hidden"
             >
               {/* Card Header */}
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex justify-between items-start">
+              <div className="p-6 border-b border-slate-100">
+                <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                      <FolderIcon className="h-6 w-6 text-primary-600" />
+                    <div className="p-3 bg-slate-100 rounded-xl group-hover:bg-slate-200 transition-colors">
+                      <FolderIcon className="h-6 w-6 text-slate-700" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">
                         {project.name}
                       </h3>
-                      <p className="text-sm text-gray-500">{project.key}</p>
+                      <p className="text-sm font-medium text-slate-500">{project.key}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        statusConfig[project.status]?.color || 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {statusConfig[project.status]?.label || project.status || 'Không xác định'}
-                    </span>
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <EllipsisVerticalIcon className="h-5 w-5" />
-                    </button>
-                  </div>
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                      statusConfig[project.status]?.color || 'bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {statusConfig[project.status]?.label || project.status || 'Không xác định'}
+                  </span>
                 </div>
                 
-                <p className="mt-3 text-sm text-gray-600 line-clamp-2">
+                <p className="text-sm text-slate-600 leading-relaxed line-clamp-2">
                   {project.description}
                 </p>
               </div>
@@ -293,54 +315,54 @@ export default function ProjectList() {
               {/* Card Body */}
               <div className="p-6">
                 {/* Progress */}
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Tiến độ</span>
-                    <span className="text-sm text-gray-600">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-semibold text-slate-700">Tiến độ</span>
+                    <span className="text-sm font-bold text-slate-900">
                       {getProgressPercentage(project)}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-slate-200 rounded-full h-2">
                     <div
-                      className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-gradient-to-r from-slate-700 to-slate-800 h-2 rounded-full transition-all duration-500 group-hover:from-slate-600 group-hover:to-slate-700"
                       style={{ width: `${getProgressPercentage(project)}%` }}
                     ></div>
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-gray-900">
+                    <div className="text-xl font-bold text-slate-900">
                       {project.taskCount || 0}
                     </div>
-                    <div className="text-xs text-gray-500">Tổng task</div>
+                    <div className="text-xs font-medium text-slate-500">Tổng task</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-green-600">
+                    <div className="text-xl font-bold text-emerald-600">
                       {project.completedTasks || 0}
                     </div>
-                    <div className="text-xs text-gray-500">Hoàn thành</div>
+                    <div className="text-xs font-medium text-slate-500">Hoàn thành</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-semibold text-blue-600">
+                    <div className="text-xl font-bold text-blue-600">
                       {project.inProgressTasks || 0}
                     </div>
-                    <div className="text-xs text-gray-500">Đang làm</div>
+                    <div className="text-xs font-medium text-slate-500">Đang làm</div>
                   </div>
                 </div>
 
-                {/* Team */}
-                <div className="flex items-center justify-between">
+                {/* Team and Deadline */}
+                <div className="flex items-center justify-between text-sm text-slate-600">
                   <div className="flex items-center space-x-2">
-                    <UserGroupIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">
+                    <UserGroupIcon className="h-4 w-4" />
+                    <span className="font-medium">
                       {project.memberCount || 0} thành viên
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-600">
+                    <CalendarDaysIcon className="h-4 w-4" />
+                    <span className="font-medium">
                       {new Date(project.deadline).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
@@ -348,17 +370,17 @@ export default function ProjectList() {
               </div>
 
               {/* Card Footer */}
-              <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-700">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-semibold text-slate-700">
                         {project.lead?.name?.charAt(0) || 'U'}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-600">{project.lead?.name || 'Chưa gán'}</span>
+                    <span className="text-sm font-medium text-slate-700">{project.lead?.name || 'Chưa gán'}</span>
                   </div>
-                  <span className={`text-sm font-medium ${(priorityConfig[project.priority] || priorityConfig.medium).color}`}>
+                  <span className={`text-sm font-semibold ${(priorityConfig[project.priority] || priorityConfig.medium).color}`}>
                     {(priorityConfig[project.priority] || priorityConfig.medium).label}
                   </span>
                 </div>
@@ -368,94 +390,95 @@ export default function ProjectList() {
         </div>
       ) : (
         // List View
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 overflow-hidden">
+          <div className="divide-y divide-slate-100">
             {filteredProjects.filter(Boolean).map((project) => project && (
-              <li
+              <div
                 key={project.id || project.projectId}
                 onClick={() => handleProjectClick(project)}
-                className="hover:bg-gray-50 cursor-pointer"
+                className="group px-6 py-5 hover:bg-slate-50 cursor-pointer transition-colors"
               >
-                <div className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1">
-                      <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                        <FolderIcon className="h-6 w-6 text-primary-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3">
-                          <p className="text-lg font-semibold text-gray-900 truncate">
-                            {project.name}
-                          </p>
-                          <span className="text-sm text-gray-500">({project.key})</span>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusConfig[project.status]?.color || 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {statusConfig[project.status]?.label || project.status || 'Không xác định'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1 truncate">
-                          {project.description}
-                        </p>
-                      </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4 flex-1">
+                    <div className="p-3 bg-slate-100 rounded-xl group-hover:bg-slate-200 transition-colors">
+                      <FolderIcon className="h-6 w-6 text-slate-700" />
                     </div>
-
-                    <div className="flex items-center space-x-6">
-                      {/* Progress */}
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-primary-600 h-2 rounded-full transition-all"
-                            style={{ width: `${getProgressPercentage(project)}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {getProgressPercentage(project)}%
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-4">
+                        <h3 className="text-lg font-semibold text-slate-900 group-hover:text-slate-800 transition-colors">
+                          {project.name}
+                        </h3>
+                        <span className="text-sm font-medium text-slate-500">({project.key})</span>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                            statusConfig[project.status]?.color || 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {statusConfig[project.status]?.label || project.status || 'Không xác định'}
                         </span>
                       </div>
-
-                      {/* Stats */}
-                      <div className="text-sm text-gray-600 text-right">
-                        <div>{project.taskCount || 0} tasks</div>
-                        <div className="text-xs text-gray-500">
-                          {project.memberCount || 0} thành viên
-                        </div>
-                      </div>
-
-                      {/* Lead */}
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium text-gray-700">
-                            {project.lead?.name?.charAt(0) || 'U'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Priority */}
-                      <span className={`text-sm font-medium ${(priorityConfig[project.priority] || priorityConfig.medium).color} w-20 text-center`}>
-                        {(priorityConfig[project.priority] || priorityConfig.medium).label}
-                      </span>
-
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <EllipsisVerticalIcon className="h-5 w-5" />
-                      </button>
+                      <p className="text-sm text-slate-600 mt-1 line-clamp-1">
+                        {project.description}
+                      </p>
                     </div>
                   </div>
+
+                  <div className="flex items-center space-x-8">
+                    {/* Progress */}
+                    <div className="flex items-center space-x-3 min-w-[120px]">
+                      <div className="flex-1 bg-slate-200 rounded-full h-2">
+                        <div
+                          className="bg-slate-700 h-2 rounded-full transition-all"
+                          style={{ width: `${getProgressPercentage(project)}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-700 min-w-[35px]">
+                        {getProgressPercentage(project)}%
+                      </span>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="text-sm text-slate-600 text-center min-w-[80px]">
+                      <div className="font-semibold text-slate-900">{project.taskCount || 0} tasks</div>
+                      <div className="text-xs text-slate-500">
+                        {project.memberCount || 0} thành viên
+                      </div>
+                    </div>
+
+                    {/* Lead */}
+                    <div className="flex items-center space-x-3 min-w-[100px]">
+                      <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-semibold text-slate-700">
+                          {project.lead?.name?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-slate-700 hidden lg:block">
+                        {project.lead?.name || 'Chưa gán'}
+                      </span>
+                    </div>
+
+                    {/* Priority */}
+                    <span className={`text-sm font-semibold min-w-[80px] text-center ${
+                      (priorityConfig[project.priority] || priorityConfig.medium).color
+                    }`}>
+                      {(priorityConfig[project.priority] || priorityConfig.medium).label}
+                    </span>
+                  </div>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
       {/* Empty State */}
       {filteredProjects.length === 0 && (
-        <div className="text-center py-12">
-          <FolderIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Không có dự án nào</h3>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 text-center py-16 px-6">
+          <div className="p-4 bg-slate-100 rounded-2xl w-fit mx-auto mb-6">
+            <FolderIcon className="h-12 w-12 text-slate-400 mx-auto" />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900 mb-3">Không có dự án nào</h3>
+          <p className="text-slate-600 max-w-md mx-auto leading-relaxed">
             {searchTerm || statusFilter || priorityFilter
               ? 'Không tìm thấy dự án nào phù hợp với bộ lọc.'
               : 'Liên hệ với quản trị viên để tạo dự án mới.'}

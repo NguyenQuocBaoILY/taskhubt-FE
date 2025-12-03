@@ -1,5 +1,5 @@
 import { createContext, useReducer, useEffect } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import authService from '../services/authService';
 
 // Initial state
@@ -239,6 +239,24 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user_email', user.email);
       
       // Store complete user info for API usage (including userId)
+      // Backend trả về isAdmin trong JWT claims có thể là string "true"/"false"
+      let isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
+      
+      // Fallback: Check username for admin accounts (temporary)
+      if (!isAdminValue && (user.username === 'admin' || user.email?.includes('admin'))) {
+        console.log('⚠️ Admin fallback triggered for:', user.username, user.email);
+        isAdminValue = true;
+      }
+      
+      console.log('🔍 Debug isAdmin parsing:', {
+        originalValue: user.isAdmin,
+        originalType: typeof user.isAdmin,
+        parsedValue: isAdminValue,
+        username: user.username,
+        email: user.email,
+        fullUser: user
+      });
+      
       localStorage.setItem('user_info', JSON.stringify({
         userId: user.userId,
         username: user.username,
@@ -246,8 +264,10 @@ export function AuthProvider({ children }) {
         name: user.name || user.username, // Đảm bảo có name field
         avatar: user.avatar,
         status: user.status,
-        userType: user.userType || 'User' // Add userType for role-based redirection
+        isAdmin: isAdminValue // Properly parsed boolean value
       }));
+      
+      console.log('💾 Stored user_info with isAdmin:', isAdminValue);
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -300,15 +320,69 @@ export function AuthProvider({ children }) {
       
       // Call real API
       const response = await authService.register(userData);
+      console.log('📝 Signup response:', response);
+      
+      // Check if registration needs separate login
+      if (response.needsLogin) {
+        console.log('🔄 Registration successful but needs login');
+        
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful but login failed' });
+        
+        return { 
+          success: true, 
+          needsLogin: true, 
+          message: response.message || 'Đăng ký thành công! Vui lòng đăng nhập.' 
+        };
+      }
       
       // Extract data from API response
       const { user, access_token, refresh_token } = response;
+      
+      // Check if we have valid tokens
+      if (!access_token || !user) {
+        console.log('⚠️ Registration successful but no tokens provided');
+        
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful but authentication failed' });
+        
+        return { 
+          success: true, 
+          needsLogin: true, 
+          message: 'Đăng ký thành công! Vui lòng đăng nhập.' 
+        };
+      }
       
       // Store tokens and user info
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
       localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
       localStorage.setItem('user_email', user.email);
+
+      // Store complete user info for API usage (including userId)
+      const isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
+      
+      console.log('🔍 Signup - Debug isAdmin parsing:', {
+        originalValue: user.isAdmin,
+        originalType: typeof user.isAdmin,
+        parsedValue: isAdminValue
+      });
+      
+      localStorage.setItem('user_info', JSON.stringify({
+        userId: user.userId || user.id || user.user_id, // Try multiple field names
+        username: user.username,
+        email: user.email,
+        name: user.name || user.username, // Đảm bảo có name field
+        avatar: user.avatar,
+        status: user.status,
+        isAdmin: isAdminValue // Properly parsed boolean value
+      }));
+
+      console.log('💾 Saved user_info after signup:', {
+        userId: user.userId || user.id || user.user_id,
+        username: user.username,
+        email: user.email,
+        name: user.name || user.username,
+        originalUser: user
+      });
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -319,7 +393,7 @@ export function AuthProvider({ children }) {
       });
 
       console.log('✅ Signup successful:', user.name || user.username);
-      toast.success('Đăng ký thành công!');
+      toast.success('Đăng ký và đăng nhập thành công!');
       return { success: true };
     } catch (error) {
       console.error('❌ Signup failed:', error);
@@ -357,7 +431,7 @@ export function AuthProvider({ children }) {
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
     
     // 2. Clear all localStorage in batch
-    const keysToRemove = ['access_token', 'refresh_token', 'user_name', 'user_email', 'user_info', 'admin_token', 'admin_user'];
+    const keysToRemove = ['access_token', 'refresh_token', 'user_name', 'user_email', 'user_info'];
     keysToRemove.forEach(key => localStorage.removeItem(key));
     
     // 3. Show success message immediately
@@ -394,6 +468,14 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user_email', user.email);
       
       // Store complete user info for API usage
+      const isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
+      
+      console.log('🔍 Google Login - Debug isAdmin parsing:', {
+        originalValue: user.isAdmin,
+        originalType: typeof user.isAdmin,
+        parsedValue: isAdminValue
+      });
+      
       localStorage.setItem('user_info', JSON.stringify({
         userId: user.userId,
         username: user.username,
@@ -401,7 +483,7 @@ export function AuthProvider({ children }) {
         name: user.name || user.username, // Đảm bảo có name field
         avatar: user.avatar,
         status: user.status,
-        userType: user.userType || 'User',
+        isAdmin: isAdminValue, // Properly parsed boolean value
         authProvider: 'GOOGLE' // Mark as Google user
       }));
 

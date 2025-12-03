@@ -32,13 +32,36 @@ export default function AdminLayout() {
   useEffect(() => {
     // Check if admin is authenticated
     const checkAuth = () => {
-      const adminToken = localStorage.getItem('admin_token');
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const accessToken = localStorage.getItem('access_token');
       
-      // Allow access if either:
-      // 1. Has admin token (hardcoded admin login)
-      // 2. Has regular token AND userType is Admin
-      const hasAdminAccess = adminToken || (userInfo.userType === 'Admin');
+      console.log('🔐 Admin auth check:');
+      console.log('- Full userInfo object:', userInfo);
+      console.log('- userInfo.isAdmin value:', userInfo.isAdmin);
+      console.log('- userInfo.isAdmin type:', typeof userInfo.isAdmin);
+      console.log('- hasToken:', !!accessToken);
+      
+      // Handle both boolean and string values from JWT + admin username fallback
+      let isAdminCheck = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
+      
+      // Fallback: Check for admin username/email (temporary until backend fix)
+      if (!isAdminCheck && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
+        console.log('⚠️ Admin fallback triggered in AdminLayout for:', userInfo.username, userInfo.email);
+        isAdminCheck = true;
+      }
+      
+      console.log('- isAdminCheck result:', isAdminCheck);
+      
+      // Allow access only if user is authenticated AND has admin privileges
+      const hasAdminAccess = accessToken && isAdminCheck;
+      
+      console.log('- Final hasAdminAccess:', hasAdminAccess);
+      
+      if (!hasAdminAccess) {
+        console.log('❌ Admin access denied');
+        console.log('- Has token:', !!accessToken);
+        console.log('- Is admin:', isAdminCheck);
+      }
       
       setIsAuthenticated(!!hasAdminAccess);
       setIsLoading(false);

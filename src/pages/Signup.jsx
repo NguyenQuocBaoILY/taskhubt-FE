@@ -53,7 +53,14 @@ export default function Signup() {
     });
 
     if (result.success) {
-      navigate('/');
+      if (result.needsLogin) {
+        // Registration successful but needs login
+        alert(result.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
+        navigate('/login');
+      } else {
+        // Registration and auto-login successful
+        navigate('/');
+      }
     }
   };
 

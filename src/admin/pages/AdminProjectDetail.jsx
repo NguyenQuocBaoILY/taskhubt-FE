@@ -16,7 +16,7 @@ import {
   UserPlusIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
-import { projectAPI, taskAPI } from '../../services/api';
+import { projectAPI, taskAPI, adminAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import ProjectModal from '../../components/ProjectModal';
 import TaskModal from '../../components/TaskModal';
@@ -38,12 +38,19 @@ export default function AdminProjectDetail() {
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProjectMembers, setUserProjectMembers] = useState({});
+  const [selectedTask, setSelectedTask] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
+    // Get current user info for admin
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    setCurrentUser(userInfo);
+    
     const fetchProjectDetail = async () => {
       try {
         console.log('📁 Admin loading project details from API...');
@@ -53,10 +60,13 @@ export default function AdminProjectDetail() {
         const project = projectRes.data;
         setProject(project);
         
-        // Also load members for overview stats
+        // Also load members for overview stats and permission checking
         const membersRes = await projectAPI.getProjectMembers(id);
         const members = membersRes.data || [];
         setMembers(members);
+        
+        // Store members for permission checking
+        setUserProjectMembers({ [id]: members });
         
         console.log('✅ Admin project details and members loaded from API');
       } catch (error) {
@@ -71,6 +81,19 @@ export default function AdminProjectDetail() {
       fetchProjectDetail();
     }
   }, [id, navigate]);
+
+  // Permission checking functions
+  const isUserManagerOfProject = (projectId) => {
+    if (!currentUser || !userProjectMembers[projectId]) return true; // Admin can do everything
+    const userId = currentUser.userId || currentUser.id;
+    const member = userProjectMembers[projectId].find(m => m.userId === userId);
+    return member?.role === 'manager' || true; // Admin override
+  };
+
+  const canManageTasks = () => {
+    // Admin can always manage tasks, or if user is manager of this project
+    return true; // Admin has full access
+  };
 
   // Load members for the project
   const fetchProjectMembers = useCallback(async () => {
@@ -95,11 +118,14 @@ export default function AdminProjectDetail() {
   // Load tasks only when tasks tab is active to avoid unnecessary API calls
   const fetchProjectTasks = useCallback(async () => {
     try {
-      console.log('📋 Loading project tasks...');
+      console.log('📋 Admin loading project tasks...');
+      console.log('📋 Project ID:', id);
       
       // Get current user info for admin
       const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
       const userId = currentUser.userId || currentUser.id;
+      
+      console.log('📋 Current user:', { userId, currentUser });
       
       if (!userId) {
         console.warn('⚠️ No userId found in localStorage');
@@ -107,14 +133,32 @@ export default function AdminProjectDetail() {
         return;
       }
       
+      // Use taskAPI with proper parameters as per API documentation
+      // GET /api/task?projectId={projectId}&userId={userId}
+      console.log('📋 Calling taskAPI.getProjectTasks with:', { projectId: id, userId });
       const tasksRes = await taskAPI.getProjectTasks(id, userId);
+      
       const tasks = tasksRes.data || [];
       setTasks(tasks);
-      console.log('✅ Tasks loaded:', tasks.length);
+      console.log('✅ Admin tasks loaded:', tasks.length, 'tasks');
+      console.log('📋 Sample task:', tasks[0]);
     } catch (error) {
-      console.warn('⚠️ Cannot load tasks from API:', error.message);
+      console.error('❌ Error loading tasks from API:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      
       setTasks([]); // Set empty array instead of mock data
-      toast.error('Không thể tải danh sách task.');
+      
+      // Show error message for non-403 errors (403 might be expected for some users)
+      if (error.response?.status !== 403) {
+        toast.error('Không thể tải danh sách task.');
+      } else {
+        console.warn('⚠️ 403 error - user may not have permission to view tasks');
+      }
     }
   }, [id]);
 
@@ -184,15 +228,126 @@ export default function AdminProjectDetail() {
   const handleCreateTask = async (taskData) => {
     try {
       console.log('📝 Admin creating task:', taskData);
-      await taskAPI.createTask(project.id, taskData);
+      
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      console.log('📝 Creating task with:', { projectId: project.id, userId, taskData });
+      
+      // Ensure required fields for the task
+      const taskPayload = {
+        ...taskData,
+        projectId: project.id,
+        userId: userId,
+        assignee: taskData.assignee || userId // Default to current user if no assignee
+      };
+      
+      console.log('📝 Final task payload:', taskPayload);
+      
+      // Use taskAPI.createTask which posts to /api/task
+      await taskAPI.createTask(taskPayload);
       
       // Refresh tasks list
       fetchProjectTasks();
       setShowTaskModal(false);
       toast.success('Tạo task thành công!');
+      console.log('✅ Task created successfully');
     } catch (error) {
       console.error('❌ Error creating task:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       toast.error('Không thể tạo task. Vui lòng thử lại.');
+    }
+  };
+
+  const handleEditTask = async (task) => {
+    // Set selected task for editing
+    setSelectedTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleCreateNewTask = () => {
+    setSelectedTask(null);
+    setShowTaskModal(true);
+  };
+
+  const handleTaskModalSubmit = async (taskData) => {
+    if (selectedTask) {
+      // Update existing task
+      await handleUpdateTask(taskData);
+    } else {
+      // Create new task
+      await handleCreateTask(taskData);
+    }
+  };
+
+  const handleUpdateTask = async (taskData) => {
+    try {
+      console.log('📝 Admin updating task:', taskData);
+      console.log('📝 Selected task:', selectedTask);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      const taskId = selectedTask.taskId || selectedTask.id;
+      
+      console.log('📝 Update params:', { taskId, projectId: project.id, userId });
+      
+      // Use taskAPI to update
+      await taskAPI.updateTask(taskId, project.id, userId, taskData);
+      
+      // Refresh tasks list
+      fetchProjectTasks();
+      setShowTaskModal(false);
+      setSelectedTask(null);
+      toast.success('Cập nhật task thành công!');
+      console.log('✅ Task updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating task:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      toast.error('Không thể cập nhật task. Vui lòng thử lại.');
+    }
+  };
+
+  const handleDeleteTask = async (task) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa task "${task.title}"?`)) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Admin deleting task:', task);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      const taskId = task.taskId || task.id;
+      
+      console.log('🗑️ Delete params:', { taskId, projectId: project.id, userId });
+      
+      // Use taskAPI to delete
+      await taskAPI.deleteTask(taskId, project.id, userId);
+      
+      // Refresh tasks list
+      fetchProjectTasks();
+      toast.success('Đã xóa task thành công!');
+      console.log('✅ Task deleted successfully');
+    } catch (error) {
+      console.error('❌ Error deleting task:', error);
+      console.error('❌ Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      toast.error('Không thể xóa task. Vui lòng thử lại.');
     }
   };
 
@@ -503,44 +658,37 @@ export default function AdminProjectDetail() {
             <div className="px-4 py-5 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Tasks</h3>
-                <button
-                  onClick={() => setShowTaskModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Tạo Task
-                </button>
+                {canManageTasks() && (
+                  <button
+                    onClick={handleCreateNewTask}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Tạo Task
+                  </button>
+                )}
               </div>
               
               {tasks.length === 0 ? (
-                <div className="text-center py-12">
-                  <ClipboardDocumentListIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">Chưa có task</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Bắt đầu bằng cách tạo task mới cho dự án này.
-                  </p>
-                  <div className="mt-6">
-                    <button
-                      onClick={() => setShowTaskModal(true)}
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                    >
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Tạo Task đầu tiên
-                    </button>
+                  <div className="text-center py-12">
+                    <ClipboardDocumentListIcon className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Chưa có task</h3>
                   </div>
-                </div>
               ) : (
                 <div className="space-y-4">
                   {tasks.map((task) => (
-                    <div key={task.id} className="border border-gray-200 rounded-lg p-4">
+                    <div key={task.id || task.taskId} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h4 className="text-base font-medium text-gray-900">{task.title}</h4>
                           <p className="text-sm text-gray-500 mt-1">{task.description}</p>
+                          {task.assignee && (
+                            <p className="text-xs text-gray-400 mt-1">Phân công: {task.assignee}</p>
+                          )}
                         </div>
                         <div className="ml-4 flex items-center space-x-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            task.priority === 'high' || task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
                             task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-green-100 text-green-800'
                           }`}>
@@ -555,6 +703,26 @@ export default function AdminProjectDetail() {
                           </span>
                           {task.dueDate && isOverdue(task.dueDate) && (
                             <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+                          )}
+                          
+                          {/* Admin action buttons */}
+                          {canManageTasks() && (
+                            <div className="flex items-center space-x-1 ml-2">
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded"
+                                title="Chỉnh sửa task"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task)}
+                                className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded"
+                                title="Xóa task"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -651,8 +819,12 @@ export default function AdminProjectDetail() {
 
       <TaskModal
         isOpen={showTaskModal}
-        onClose={() => setShowTaskModal(false)}
-        onSubmit={handleCreateTask}
+        onClose={() => {
+          setShowTaskModal(false);
+          setSelectedTask(null);
+        }}
+        onSubmit={handleTaskModalSubmit}
+        task={selectedTask}
         project={project}
       />
 

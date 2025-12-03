@@ -12,7 +12,7 @@ import {
   ChartBarIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
-import { taskAPI, enrichTasksWithAssigneeNames } from '../services/api';
+import { taskAPI, enrichTasksWithAssigneeNames, projectAPI } from '../services/api';
 import TaskModal from '../components/TaskModal';
 import TaskFiles from '../components/TaskFiles';
 import { format } from 'date-fns';
@@ -59,6 +59,10 @@ export default function TaskDetail() {
   const [error, setError] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   
+  // User permission states
+  const [currentUserInfo, setCurrentUserInfo] = useState(null);
+  const [isProjectManager, setIsProjectManager] = useState(false);
+  
   // Status update states
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('');
@@ -78,13 +82,15 @@ export default function TaskDetail() {
       console.log('📋 TaskDetail loading for taskId:', taskId);
 
       // Get current user info
-      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
-      const userId = currentUser.userId || currentUser.id;
+      const currentUserInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUserInfo.userId || currentUserInfo.id;
 
       if (!userId) {
         setError('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
         return;
       }
+
+      setCurrentUserInfo(currentUserInfo);
 
       // Extract projectId from URL parameters
       const urlParams = new URLSearchParams(window.location.search);
@@ -102,6 +108,20 @@ export default function TaskDetail() {
       // Call API to get task details
       const response = await taskAPI.getTask(taskId, projectId, userId);
       const taskData = response.data;
+
+      // Check if current user is project manager
+      try {
+        const membersResponse = await projectAPI.getProjectMembers(projectId);
+        const projectMembers = membersResponse.data || [];
+        const currentUserMembership = projectMembers.find(member => member.userId === userId);
+        const isManager = currentUserMembership && currentUserMembership.role === 'manager';
+        
+        setIsProjectManager(isManager);
+        console.log('👤 Current user manager status:', isManager, 'User role:', currentUserMembership?.role);
+      } catch (error) {
+        console.warn('⚠️ Could not check manager status:', error);
+        setIsProjectManager(false);
+      }
 
       // Enrich task with assignee name
       const enrichedTasks = await enrichTasksWithAssigneeNames([taskData]);
@@ -135,7 +155,11 @@ export default function TaskDetail() {
     }
 
     try {
-      await taskAPI.deleteTask(task.taskId, task.projectId);
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      await taskAPI.deleteTask(task.taskId, task.projectId, userId);
       
       // Navigate back to project detail
       navigate(`/projects/${task.projectId}?tab=tasks`);
@@ -168,8 +192,21 @@ export default function TaskDetail() {
       setUpdatingStatus(true);
       const projectId = new URLSearchParams(window.location.search).get('projectId');
       
-      // Update task status using PATCH API
-      await taskAPI.updateTaskStatus(task.taskId, projectId, newStatus);
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+
+      if (!userId) {
+        alert('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
+        return;
+      }
+
+      console.log('📤 Updating task status:', { taskId: task.taskId, projectId, userId, status: newStatus });
+      
+      // Update task status using PATCH API with new format
+      await taskAPI.updateTaskStatus(task.taskId, projectId, userId, newStatus);
+      
+      console.log('✅ Task status updated successfully');
       
       // Reload task data to reflect changes
       loadTaskDetail();
@@ -177,8 +214,8 @@ export default function TaskDetail() {
       setShowStatusModal(false);
       alert('Cập nhật trạng thái task thành công!');
     } catch (error) {
-      console.error('Failed to update task status:', error);
-      alert('Cập nhật trạng thái task thất bại.');
+      console.error('❌ Failed to update task status:', error);
+      alert(`Cập nhật trạng thái task thất bại: ${error.response?.data?.message || error.message}`);
     } finally {
       setUpdatingStatus(false);
     }
@@ -280,21 +317,26 @@ export default function TaskDetail() {
             Tiến độ task
           </button>
           
-          <button
-            onClick={handleEditTask}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <PencilIcon className="h-4 w-4 mr-2" />
-            Chỉnh sửa
-          </button>
-          
-          <button
-            onClick={handleDeleteTask}
-            className="inline-flex items-center px-3 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50"
-          >
-            <TrashIcon className="h-4 w-4 mr-2" />
-            Xóa
-          </button>
+          {/* Only show edit/delete buttons for project managers */}
+          {isProjectManager && (
+            <>
+              <button
+                onClick={handleEditTask}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <PencilIcon className="h-4 w-4 mr-2" />
+                Chỉnh sửa
+              </button>
+              
+              <button
+                onClick={handleDeleteTask}
+                className="inline-flex items-center px-3 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-white hover:bg-red-50"
+              >
+                <TrashIcon className="h-4 w-4 mr-2" />
+                Xóa
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -381,18 +423,6 @@ export default function TaskDetail() {
               </div>
             </div>
 
-            {/* Assigned At */}
-            {task.assignedAt && (
-              <div className="flex items-center">
-                <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Ngày phân công</p>
-                  <p className="text-sm text-gray-600">
-                    {formatDate(task.assignedAt)}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

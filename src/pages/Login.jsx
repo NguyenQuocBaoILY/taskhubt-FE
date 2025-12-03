@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useContext';
 import { initGoogleAuth, signInWithGoogle } from '../services/googleAuth';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -46,8 +46,29 @@ export default function Login() {
         toast.loading('Đang xác thực với server...', { id: 'google-signin' });
         const result = await googleLogin(idToken);
         if (result.success) {
+          // Get user info after Google login
+          const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+          
+          // Handle both boolean and string values from JWT + fallback for admin
+          let isAdmin = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
+          
+          // Fallback: Check for admin username/email (temporary until backend fix)
+          if (!isAdmin && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
+            console.log('⚠️ Admin fallback triggered in Google login for:', userInfo.username, userInfo.email);
+            isAdmin = true;
+          }
+          
+          console.log('👤 Google login successful - User info:', userInfo);
+          console.log('🔑 Is Admin:', isAdmin, '(type:', typeof userInfo.isAdmin, 'original:', userInfo.isAdmin, ')');
+          
           toast.success('Đăng nhập Google thành công!', { id: 'google-signin' });
-          navigate('/dashboard', { replace: true });
+          
+          // Role-based redirection for Google login
+          if (isAdmin) {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
         }
       }
     } catch (error) {
@@ -81,40 +102,31 @@ export default function Login() {
       return;
     }
 
-    // Check if admin credentials
-    if (formData.email === 'admin@gmail.com' && formData.password === 'admin123') {
-      // Admin login - store admin token and navigate to admin
-      const adminUser = {
-        userId: 'admin-001',
-        username: 'admin',
-        email: 'admin@gmail.com',
-        name: 'Administrator',
-        userType: 'Admin',
-        isAdmin: true
-      };
-
-      localStorage.setItem('admin_token', 'admin-fake-token-' + Date.now());
-      localStorage.setItem('admin_user', JSON.stringify(adminUser));
-      
-      navigate('/admin');
-      return;
-    }
-
-    // Regular user login
+    // Use API login for all users (including admin)
     const result = await login(formData.email, formData.password);
     if (result.success) {
       // Get user info from localStorage after successful login
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-      const userType = userInfo.userType || 'User'; // Default to User if not specified
+      
+      // Handle both boolean and string values from JWT + fallback for admin username
+      let isAdmin = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
+      
+      // Fallback: Check for admin username/email (temporary until backend fix)
+      if (!isAdmin && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
+        console.log('⚠️ Admin fallback triggered in Login for:', userInfo.username, userInfo.email);
+        isAdmin = true;
+      }
+      
+      console.log('👤 Login successful - User info:', userInfo);
+      console.log('🔑 Is Admin:', isAdmin, '(type:', typeof userInfo.isAdmin, 'original:', userInfo.isAdmin, ')');
 
       // Role-based redirection
-      switch (userType) {
-        case "Admin":
-          navigate("/admin");
-          break;
-        default:
-          navigate("/projects"); // Default for regular users
-          break;
+      if (isAdmin) {
+        console.log('➡️ Redirecting to Admin Dashboard');
+        navigate('/admin');
+      } else {
+        console.log('➡️ Redirecting to User Projects');
+        navigate('/projects');
       }
     }
   };

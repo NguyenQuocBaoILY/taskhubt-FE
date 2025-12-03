@@ -6,6 +6,7 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,8 +19,20 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
     try {
       setLoading(true);
       setError('');
+      
+      console.log('📂 Loading files for:', {
+        taskId,
+        projectId,
+        userId
+      });
+      
       const response = await taskAPI.getTaskFiles(taskId, projectId, userId);
-      setFiles(response.data || []);
+      const files = response.data || [];
+      
+      console.log('📂 Loaded files:', files);
+      console.log('📂 Sample file structure:', files[0]);
+      
+      setFiles(files);
     } catch (error) {
       console.error('Error loading task files:', error);
       setError('Không thể tải danh sách files');
@@ -48,6 +61,17 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       // Add new file to list
       setFiles(prev => [...prev, response.data]);
       
+      // Refresh file list after 1 second to ensure sync
+      setTimeout(() => {
+        console.log('🔄 Auto-refreshing file list after upload');
+        loadFiles();
+      }, 1000);
+      
+      // Clear file input
+      event.target.value = '';
+      
+      console.log('File uploaded successfully:', response.data);
+      
       // Clear file input
       event.target.value = '';
       
@@ -60,21 +84,46 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
     }
   };
 
-  const handleDeleteFile = async (fileId) => {
-    if (!confirm('Bạn có chắc muốn xóa file này?')) {
+  const handleDeleteFile = async (fileId, fileName) => {
+    if (!confirm(`Bạn có chắc muốn xóa file "${fileName}"?`)) {
       return;
     }
 
     try {
-      await taskAPI.deleteTaskFile(taskId, fileId);
+      setDeletingFileId(fileId);
+      setError('');
+      
+      console.log('🗑️ Attempting to delete file:', {
+        taskId,
+        fileId,
+        projectId,
+        userId,
+        fileName
+      });
+      
+      await taskAPI.deleteTaskFile(taskId, fileId, projectId, userId);
       
       // Remove file from list
       setFiles(prev => prev.filter(f => f.fileId !== fileId));
       
-      console.log('File deleted successfully');
+      console.log('✅ File deleted successfully:', fileName);
     } catch (error) {
-      console.error('Error deleting file:', error);
-      alert('Không thể xóa file. Vui lòng thử lại.');
+      console.error('❌ Error deleting file:', error);
+      
+      let errorMessage = 'Không thể xóa file. Vui lòng thử lại.';
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        errorMessage = 'Không thể xóa file. Vui lòng thử lại.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Bạn không có quyền xóa file này.';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Lỗi máy chủ. Vui lòng thử lại sau.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setDeletingFileId(null);
     }
   };
 
@@ -125,8 +174,15 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
 
       {/* Error message */}
       {error && (
-        <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
-          {error}
+        <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            onClick={() => setError('')}
+            className="ml-2 text-red-500 hover:text-red-700 font-semibold"
+            title="Đóng thông báo"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -174,11 +230,20 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
                 
                 {!isReadOnly && (
                   <button
-                    onClick={() => handleDeleteFile(file.fileId)}
-                    className="ml-3 p-1 text-red-400 hover:text-red-600 transition-colors"
+                    onClick={() => handleDeleteFile(file.fileId, file.fileName)}
+                    disabled={deletingFileId === file.fileId}
+                    className={`ml-3 p-1 transition-colors ${
+                      deletingFileId === file.fileId
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-red-400 hover:text-red-600'
+                    }`}
                     title="Xóa file"
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    {deletingFileId === file.fileId ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                    ) : (
+                      <TrashIcon className="h-4 w-4" />
+                    )}
                   </button>
                 )}
               </div>

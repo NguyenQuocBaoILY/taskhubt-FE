@@ -66,7 +66,11 @@ export default function TaskList({ projectId, currentUserId, project = null }) {
     }
 
     try {
-      await taskAPI.deleteTask(task.taskId, projectId);
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      await taskAPI.deleteTask(task.taskId, projectId, userId);
       
       // Remove from list
       setTasks(prev => prev.filter(t => t.taskId !== task.taskId));
