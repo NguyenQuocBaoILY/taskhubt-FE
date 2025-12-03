@@ -44,7 +44,53 @@ export const authService = {
       timezone: userData.timezone || 'Asia/Ho_Chi_Minh',
       language: userData.language || 'vi',
     });
-    return response.data;
+    
+    const responseData = response.data;
+    console.log('📥 Register API response:', responseData);
+    
+    // API register returns { accessToken: null, refreshToken: null, user, message }
+    // We need to auto-login after successful registration
+    if (responseData.user && !responseData.accessToken) {
+      console.log('🔄 Registration successful, attempting auto-login...');
+      
+      // Auto-login with the same credentials
+      try {
+        const loginResponse = await authAPI.post('/api/Auth/login', {
+          usernameOrEmail: userData.email,
+          password: userData.password,
+        });
+        
+        const { accessToken, refreshToken, user } = loginResponse.data;
+        
+        return {
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          user: user,
+          message: responseData.message
+        };
+      } catch (loginError) {
+        console.error('❌ Auto-login failed after registration:', loginError);
+        // Return original registration response even if auto-login fails
+        return {
+          access_token: null,
+          refresh_token: null,
+          user: responseData.user,
+          message: responseData.message,
+          needsLogin: true
+        };
+      }
+    }
+    
+    // If tokens are provided in registration (shouldn't happen based on API spec)
+    if (responseData.accessToken && responseData.user) {
+      return {
+        access_token: responseData.accessToken,
+        refresh_token: responseData.refreshToken,
+        user: responseData.user
+      };
+    }
+    
+    return responseData;
   },
 
   // Refresh token
@@ -118,10 +164,19 @@ export const authService = {
 
   // Reset Password
   resetPassword: async (data) => {
+    console.log('🔒 Calling reset password API with:', { 
+      token: data.token?.substring(0, 10) + '...', 
+      hasNewPassword: !!data.newPassword,
+      apiBaseURL: authAPI.defaults.baseURL
+    });
+    
+    // Use consistent Auth endpoint (capital A) like other endpoints
     const response = await authAPI.post('/api/Auth/reset-password', {
       token: data.token,
       newPassword: data.newPassword,
     });
+    
+    console.log('✅ Reset password API success:', response.data);
     return response.data;
   },
 };

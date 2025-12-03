@@ -199,16 +199,6 @@ export default function ResetPassword() {
                 </div>
               </div>
 
-              {/* Password Requirements */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-blue-800 font-medium mb-2">Yêu cầu mật khẩu:</p>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Ít nhất 6 ký tự</li>
-                  <li>• Nên bao gồm chữ hoa, chữ thường và số</li>
-                  <li>• Tránh sử dụng thông tin cá nhân</li>
-                </ul>
-              </div>
-
               <div>
                 <button
                   type="submit"

@@ -66,7 +66,7 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
     }
 
     try {
-      await taskAPI.deleteTaskFile(taskId, fileId);
+      await taskAPI.deleteTaskFile(taskId, fileId, projectId, userId);
       
       // Remove file from list
       setFiles(prev => prev.filter(f => f.fileId !== fileId));

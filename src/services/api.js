@@ -539,10 +539,13 @@ export const taskAPI = {
     
     console.log('📤 Sending task payload to POST /api/task:', taskPayload);
     
-    // Query params for projectId and userId
-    const params = {};
-    if (finalProjectId) params.projectId = finalProjectId;
-    if (finalUserId) params.userId = finalUserId;
+    // API requires projectId and userId as query parameters
+    const params = {
+      projectId: finalProjectId,
+      userId: finalUserId
+    };
+    
+    console.log('📤 Query parameters:', params);
     
     return api.post('/api/task', taskPayload, { params }).then(response => {
       console.log('✅ Task creation success:', response.status);
@@ -550,15 +553,18 @@ export const taskAPI = {
       return response;
     }).catch(error => {
       console.error('❌ Task creation failed:', error.response?.data || error.message);
+      console.error('❌ Request URL:', error.config?.url);
+      console.error('❌ Request params:', error.config?.params);
       throw error;
     });
   },
   
   // Update task (PUT /api/task/{taskId})
-  updateTask: (taskId, taskData, projectId) => {
-    console.log('📝 Updating task:', { taskId, taskData, projectId });
+  updateTask: (taskId, taskData, projectId, userId = null) => {
+    console.log('📝 Updating task:', { taskId, taskData, projectId, userId });
     
     const now = new Date().toISOString();
+    const finalUserId = userId || taskData.assignee;
     
     // Create full payload with all DynamoDB fields for update
     const updatePayload = {
@@ -589,17 +595,23 @@ export const taskAPI = {
       gsI5SK: `TASK#${taskId}`
     };
     
-    const params = {};
-    if (projectId) params.projectId = projectId;
+    // API requires projectId and userId as query parameters
+    const params = {
+      projectId: projectId || taskData.projectId,
+      userId: finalUserId
+    };
+    
+    console.log('📤 Update task payload:', updatePayload);
+    console.log('📤 Update task params:', params);
     
     return api.put(`/api/task/${taskId}`, updatePayload, { params });
   },
   
   // Update task status only (PATCH /api/task/{taskId}/status)
-  updateTaskStatus: (taskId, projectId, status) => {
-    const params = { projectId };
-    // According to API spec, body should be just the status string, not an object
-    return api.patch(`/api/task/${taskId}/status`, status, { 
+  updateTaskStatus: (taskId, projectId, userId, status) => {
+    const params = { projectId, userId };
+    // New API spec: body should be object with status property
+    return api.patch(`/api/task/${taskId}/status`, { status: status }, { 
       params,
       headers: {
         'Content-Type': 'application/json'
@@ -608,8 +620,15 @@ export const taskAPI = {
   },
   
   // Delete task (DELETE /api/task/{taskId})
-  deleteTask: (taskId, projectId) => {
-    const params = { projectId };
+  deleteTask: (taskId, projectId, userId) => {
+    console.log('🗑️ Deleting task:', { taskId, projectId, userId });
+    
+    const params = { 
+      projectId: projectId,
+      userId: userId 
+    };
+    
+    console.log('📤 Delete task params:', params);
     return api.delete(`/api/task/${taskId}`, { params });
   },
 
@@ -633,8 +652,16 @@ export const taskAPI = {
     });
   },
 
-  deleteTaskFile: (taskId, fileId) => {
-    return api.delete(`/api/task/${taskId}/files/${fileId}`);
+  deleteTaskFile: (taskId, fileId, projectId, userId) => {
+    console.log('🗑️ Deleting task file:', { taskId, fileId, projectId, userId });
+    
+    const params = {
+      projectId: projectId,
+      userId: userId
+    };
+    
+    console.log('📤 Delete file params:', params);
+    return api.delete(`/api/task/${taskId}/files/${fileId}`, { params });
   },
 };
 
@@ -717,5 +744,51 @@ export const enrichTasksWithAssigneeNames = async (tasks) => {
   } catch (error) {
     console.warn('Failed to fetch assignee names:', error);
     return tasks;
+  }
+};
+
+// Admin API - Special endpoints for admin users
+export const adminAPI = {
+  // Admin can view all tasks without permission restrictions
+  getProjectTasks: async (projectId) => {
+    try {
+      console.log('🔄 Admin fetching project tasks for:', projectId);
+      
+      // Get current admin user
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      // Use regular API but with admin token
+      const response = await api.get(`/api/task`, {
+        params: { projectId, userId },
+        headers: {
+          'X-Admin-Override': 'true' // Custom header to indicate admin access
+        }
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Admin API error loading tasks:', error);
+      throw error;
+    }
+  },
+  
+  // Admin can create tasks in any project
+  createTask: async (projectId, userId, taskData) => {
+    try {
+      console.log('🔄 Admin creating task:', { projectId, taskData });
+      
+      const response = await api.post('/api/task', taskData, {
+        params: { projectId, userId },
+        headers: {
+          'X-Admin-Override': 'true'
+        }
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Admin API error creating task:', error);
+      throw error;
+    }
   }
 };

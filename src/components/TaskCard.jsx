@@ -181,27 +181,31 @@ export default function TaskCard({
                     <span>Xem chi tiết</span>
                   </button>
                   
-                  <button
-                    onClick={() => {
-                      onEdit?.();
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <PencilIcon className="h-4 w-4 text-gray-400" />
-                    <span>Chỉnh sửa</span>
-                  </button>
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        onEdit();
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <PencilIcon className="h-4 w-4 text-gray-400" />
+                      <span>Chỉnh sửa</span>
+                    </button>
+                  )}
                   
-                  <button
-                    onClick={() => {
-                      onDelete?.();
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center space-x-2"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    <span>Xóa</span>
-                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        onDelete();
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center space-x-2"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      <span>Xóa</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}

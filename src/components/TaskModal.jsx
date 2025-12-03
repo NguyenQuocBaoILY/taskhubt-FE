@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { taskAPI, userAPI } from '../services/api';
+import { taskAPI, projectAPI, userAPI } from '../services/api';
 
 // Status = mức độ hoàn thành công việc
 const statuses = [
@@ -26,28 +26,73 @@ export default function TaskModal({
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [membersWithDetails, setMembersWithDetails] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  // Load users when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      loadUsers();
+  const loadProjectMembers = useCallback(async () => {
+    if (!project?.projectId && !project?.id) {
+      console.error('❌ No project ID available for loading members');
+      return;
     }
-  }, [isOpen]);
 
-  const loadUsers = async () => {
     try {
-      setLoadingUsers(true);
-      const response = await userAPI.getUsers();
-      setUsers(response.data || []);
+      setLoadingMembers(true);
+      const projectId = project.projectId || project.id;
+      console.log('🔄 Loading members for project:', projectId);
+      
+      // Get project members
+      const response = await projectAPI.getProjectMembers(projectId);
+      const members = response.data || [];
+      setProjectMembers(members);
+      console.log('✅ Project members loaded:', members);
+      
+      // Get user details for each member to get their names
+      // Since /api/users/{userId} returns 404, we'll get all users and match by userId
+      let allUsers = [];
+      try {
+        const usersResponse = await userAPI.getUsers();
+        allUsers = usersResponse.data || [];
+        console.log('👥 All users loaded:', allUsers);
+      } catch (error) {
+        console.warn('Failed to load users list:', error);
+        allUsers = [];
+      }
+      
+      // Create user lookup map for fast access
+      const userMap = {};
+      allUsers.forEach(user => {
+        userMap[user.userId] = user;
+      });
+      
+      // Enrich members with user details
+      const membersWithUserDetails = members.map(member => {
+        const userData = userMap[member.userId];
+        return {
+          ...member,
+          name: userData?.name || userData?.fullName || userData?.displayName || userData?.username || member.username,
+          email: userData?.email
+        };
+      });
+      
+      setMembersWithDetails(membersWithUserDetails);
+      console.log('✅ Members with details:', membersWithUserDetails);
+      
     } catch (error) {
-      console.error('Error loading users:', error);
-      setUsers([]);
+      console.error('❌ Error loading project members:', error);
+      setProjectMembers([]);
+      setMembersWithDetails([]);
     } finally {
-      setLoadingUsers(false);
+      setLoadingMembers(false);
     }
-  };
+  }, [project]);
+
+  // Load project members when modal opens
+  useEffect(() => {
+    if (isOpen && project) {
+      loadProjectMembers();
+    }
+  }, [isOpen, project, loadProjectMembers]);
 
   // Khi mở modal hoặc đổi task → fill lại form
   useEffect(() => {
@@ -130,7 +175,7 @@ export default function TaskModal({
       console.log('🔍 Task creation info:', { projectId, userId, currentUser });
 
       // Map đúng model backend theo API schema
-      const selectedUser = users.find(user => user.userId === formData.assignee);
+      const selectedMember = membersWithDetails.find(member => member.userId === formData.assignee);
       
       const payload = {
         title: formData.title.trim(),
@@ -138,7 +183,7 @@ export default function TaskModal({
         status: formData.status,
         priority: 'medium', // Default priority
         assignee: formData.assignee,
-        assigneeName: selectedUser ? (selectedUser.name || selectedUser.username) : null,
+        assigneeName: selectedMember ? (selectedMember.name || selectedMember.username) : null,
         dueDate: formData.endDate, // Map endDate to dueDate
       };
 
@@ -275,24 +320,24 @@ export default function TaskModal({
               {/* Assignee */}
               <div>
                 <label htmlFor="assigneeId" className="block text-sm font-medium text-gray-700">
-                  Người phụ trách <span className="text-red-500">*</span>
+                  Người thực hiện <span className="text-red-500">*</span>
                 </label>
                 <select
                   id="assignee"
                   name="assignee"
                   value={formData.assignee}
                   onChange={handleChange}
-                  disabled={loadingUsers}
+                  disabled={loadingMembers}
                   className={`mt-1 block w-full px-3 py-2 border ${
                     errors.assignee ? 'border-red-300' : 'border-gray-300'
                   } bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
                 >
                   <option value="">
-                    {loadingUsers ? 'Đang tải danh sách người dùng...' : 'Chọn người phụ trách'}
+                    {loadingMembers ? 'Đang tải thành viên dự án...' : 'Người thực hiện...'}
                   </option>
-                  {users.map((user) => (
-                    <option key={user.userId || user.id} value={user.userId || user.id}>
-                      {user.name || user.username} {user.email ? `(${user.email})` : ''}
+                  {membersWithDetails.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.name} ({member.role === 'manager' ? 'Quản lý' : 'Thành viên'})
                     </option>
                   ))}
                 </select>

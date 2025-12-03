@@ -172,6 +172,7 @@ export default function TaskBoard() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [isProjectManager, setIsProjectManager] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -195,6 +196,20 @@ export default function TaskBoard() {
       }
       
       console.log('📊 Loading tasks for project:', projectId, 'user:', userId);
+      
+      // Check if current user is project manager
+      try {
+        const membersResponse = await projectAPI.getProjectMembers(projectId);
+        const projectMembers = membersResponse.data || [];
+        const currentUserMembership = projectMembers.find(member => member.userId === userId);
+        const isManager = currentUserMembership && currentUserMembership.role === 'manager';
+        
+        setIsProjectManager(isManager);
+        console.log('👤 Current user manager status:', isManager, 'User role:', currentUserMembership?.role);
+      } catch (error) {
+        console.warn('⚠️ Could not check manager status:', error);
+        setIsProjectManager(false);
+      }
       
       // Fetch tasks from API
       const response = await taskAPI.getProjectTasks(projectId, userId);
@@ -334,27 +349,32 @@ export default function TaskBoard() {
 
   const handleCreateTask = async (taskData) => {
     try {
-      const response = await taskAPI.createTask(taskData);
-      const newTask = {
-        ...response.data,
-        ...taskData,
-        assignee: currentProject?.members.find(m => m.id === taskData.assigneeId),
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0],
-        labels: [],
-        projectId: parseInt(projectId),
-      };
-      setTasks([...tasks, newTask]);
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      // Call createTask with correct parameter order: (taskData, projectId, userId)
+      const response = await taskAPI.createTask(taskData, projectId, userId);
+      console.log('✅ Task created successfully:', response.data);
+      
       toast.success('Tạo task thành công!');
       setShowTaskModal(false);
-    } catch {
+      
+      // Refresh the task list to show the new task
+      await fetchTasks();
+    } catch (error) {
+      console.error('❌ Error creating task:', error);
       toast.error('Lỗi tạo task');
     }
   };
 
   const handleDeleteTask = async (taskId) => {
     try {
-      await taskAPI.deleteTask(taskId);
+      // Get current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      await taskAPI.deleteTask(taskId, projectId, userId);
       setTasks(tasks.filter(task => task.taskId !== taskId));
       toast.success('Xóa task thành công!');
     } catch (error) {
@@ -399,13 +419,16 @@ export default function TaskBoard() {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowTaskModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Tạo task
-          </button>
+          {/* Only show create task button for project managers */}
+          {isProjectManager && (
+            <button
+              onClick={() => setShowTaskModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Tạo task
+            </button>
+          )}
         </div>
 
         {/* Filters */}

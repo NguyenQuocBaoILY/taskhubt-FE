@@ -52,6 +52,7 @@ export default function ProjectDetail() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isProjectManager, setIsProjectManager] = useState(false);
 
   useEffect(() => {
     const fetchProjectDetail = async () => {
@@ -67,6 +68,10 @@ export default function ProjectDetail() {
           return;
         }
         
+        // Get current user info
+        const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+        const userId = currentUser.userId || currentUser.id;
+        
         // Load project details
         const projectRes = await projectAPI.getProject(id);
         const project = projectRes.data;
@@ -78,10 +83,22 @@ export default function ProjectDetail() {
           const membersRes = await projectAPI.getProjectMembers(id);
           const members = membersRes.data || [];
           setMembers(members);
+          
+          // Check if current user is project manager
+          if (userId) {
+            const currentUserMembership = members.find(member => member.userId === userId);
+            const isManager = currentUserMembership && currentUserMembership.role === 'manager';
+            setIsProjectManager(isManager);
+            console.log('👤 Current user manager status:', isManager, 'User role:', currentUserMembership?.role);
+          } else {
+            setIsProjectManager(false);
+          }
+          
           console.log('✅ Members loaded successfully:', members.length, members);
         } catch (memberError) {
           console.warn('⚠️ Failed to load project members:', memberError.message);
           setMembers([]); // Set empty array if members fail to load
+          setIsProjectManager(false);
         }
         
         console.log('✅ Project details and members loaded from API');
@@ -175,17 +192,23 @@ export default function ProjectDetail() {
   const handleCreateTask = async (taskData) => {
     try {
       console.log('📝 Creating task via API...');
-      const res = await taskAPI.createTask(id, taskData);
+      // Current user info
+      const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userId = currentUser.userId || currentUser.id;
+      
+      // Call createTask with correct parameter order: (taskData, projectId, userId)
+      const res = await taskAPI.createTask(taskData, id, userId);
       const newTask = res.data;
       
-      setTasks([newTask, ...tasks]);
+      console.log('✅ Task created successfully:', newTask);
       toast.success('Tạo task thành công!');
       setShowTaskModal(false);
       
-      // Refresh tasks list
-      fetchProjectTasks();
+      // Refresh tasks list to show new task
+      await fetchProjectTasks();
     } catch (error) {
       console.error('❌ Lỗi tạo task:', error);
+      console.error('Error details:', error.response?.data);
       toast.error('Không thể tạo task. Vui lòng thử lại.');
     }
   };
@@ -304,21 +327,16 @@ export default function ProjectDetail() {
                   Kanban Board
                 </Link>
 
-                <button
-                  onClick={() => setShowTaskModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Tạo task
-                </button>
-
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                >
-                  <PencilIcon className="h-4 w-4 mr-2" />
-                  Chỉnh sửa
-                </button>
+                {/* Only show task creation button for project managers */}
+                {isProjectManager && (
+                  <button
+                    onClick={() => setShowTaskModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Tạo task
+                  </button>
+                )}
               </div>
             </div>
           </div>

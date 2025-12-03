@@ -43,9 +43,18 @@ export default function ProjectList() {
       
       // Get userId from stored user info
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-      const userId = userInfo.userId;
+      // Try multiple field names for userId
+      const userId = userInfo.userId || userInfo.id || userInfo.user_id;
+      
+      console.log('👤 ProjectList - User info:', userInfo);
+      console.log('🆔 ProjectList - Extracted userId:', userId);
       
       if (!userId) {
+        console.error('❌ ProjectList - No userId found in user_info:', userInfo);
+        // Try to get user ID from other localStorage keys as fallback
+        const userName = localStorage.getItem('user_name');
+        const userEmail = localStorage.getItem('user_email');
+        console.log('🔄 ProjectList Fallback - userName:', userName, 'userEmail:', userEmail);
         throw new Error('No userId found in user_info');
       }
       
