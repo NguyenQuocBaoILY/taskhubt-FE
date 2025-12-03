@@ -13,7 +13,7 @@ import {
   FlagIcon
 } from '@heroicons/react/24/outline';
 import { taskAPI, enrichTasksWithAssigneeNames, projectAPI } from '../services/api';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import TaskModal from '../components/TaskModal';
 import TaskCard from '../components/TaskCard';
 import { format, isBefore, isToday } from 'date-fns';
@@ -56,7 +56,7 @@ function TaskPage() {
     if (userInfo.userId || userInfo.id) {
       loadTasks();
     } else {
-      toast.error('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
+      // toast('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.', { icon: '❌' });
     }
   }, []);
 
@@ -68,7 +68,7 @@ function TaskPage() {
       const userId = userInfo.userId || userInfo.id;
       
       if (!userId) {
-        toast.error('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.');
+        // toast('Không tìm thấy thông tin user. Vui lòng đăng nhập lại.', { icon: '❌' });
         return;
       }
       
@@ -81,7 +81,14 @@ function TaskPage() {
       
       if (projects.length === 0) {
         setTasks([]);
-        toast.info('Bạn chưa có project nào. Vui lòng tạo project trước.');
+        // toast('Bạn chưa có project nào. Vui lòng tạo project trước.', {
+        //   icon: 'ℹ️',
+        //   style: {
+        //     borderRadius: '10px',
+        //     background: '#333',
+        //     color: '#fff',
+        //   },
+        // });
         return;
       }
       
@@ -122,7 +129,7 @@ function TaskPage() {
       
     } catch (err) {
       console.error('❌ Error loading tasks:', err);
-      toast.error('Không tải được danh sách task');
+      toast('Không tải được danh sách task', { icon: '❌' });
     } finally {
       setLoading(false);
     }
@@ -178,11 +185,11 @@ function TaskPage() {
     try {
       const userId = currentUser.userId || currentUser.id;
       await taskAPI.deleteTask(task.taskId, task.projectId, userId);
-      toast.success('Đã xóa task');
+      toast('Đã xóa task', { icon: '✅' });
       loadTasks();
     } catch (err) {
       console.error(err);
-      toast.error('Xóa task thất bại');
+      toast('Xóa task thất bại', { icon: '❌' });
     }
   };
 

@@ -490,6 +490,10 @@ export const taskAPI = {
       userId,
       ...params // status, assignee
     };
+    console.log('🚀 taskAPI.getProjectTasks calling:', {
+      endpoint: '/api/task',
+      queryParams
+    });
     return api.get('/api/task', { params: queryParams });
   },
 

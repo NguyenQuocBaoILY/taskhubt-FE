@@ -423,18 +423,6 @@ export default function TaskDetail() {
               </div>
             </div>
 
-            {/* Assigned At */}
-            {task.assignedAt && (
-              <div className="flex items-center">
-                <UserIcon className="h-5 w-5 text-gray-400 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Ngày phân công</p>
-                  <p className="text-sm text-gray-600">
-                    {formatDate(task.assignedAt)}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

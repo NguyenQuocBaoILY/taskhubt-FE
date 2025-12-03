@@ -97,15 +97,38 @@ export default function TaskModal({
   // Khi mở modal hoặc đổi task → fill lại form
   useEffect(() => {
     if (task) {
+      console.log('🔄 Populating form with task data:', task);
+      
+      // Helper function to convert date to YYYY-MM-DD format
+      const formatDate = (dateString) => {
+        if (!dateString) return '';
+        try {
+          const date = new Date(dateString);
+          return date.toISOString().split('T')[0];
+        } catch (error) {
+          console.warn('Invalid date format:', dateString);
+          return '';
+        }
+      };
+      
       setFormData({
         title: task.title || '',
         description: task.description || '',
         status: task.status || 'not-started',
         assignee: task.assignee || '',
-        startDate: task.startDate ? task.startDate.split('T')[0] : '',
-        endDate: task.endDate ? task.endDate.split('T')[0] : '',
+        startDate: formatDate(task.assignedAt || task.createdAt || task.startDate),
+        endDate: formatDate(task.dueDate || task.endDate),
+      });
+      
+      console.log('✅ Form populated with dates:', {
+        originalAssignedAt: task.assignedAt,
+        originalDueDate: task.dueDate,
+        originalCreatedAt: task.createdAt,
+        formattedStartDate: formatDate(task.assignedAt || task.createdAt || task.startDate),
+        formattedEndDate: formatDate(task.dueDate || task.endDate),
       });
     } else {
+      // Reset form for new task
       setFormData({
         title: '',
         description: '',
@@ -197,9 +220,11 @@ export default function TaskModal({
           createdAt: task.createdAt, // Preserve existing createdAt
           assignedAt: task.assignedAt || new Date().toISOString(), // Preserve or set assignedAt
         };
-        await taskAPI.updateTask(task.taskId, updatePayload, projectId);
+        console.log('🔄 Updating task with payload:', updatePayload);
+        await taskAPI.updateTask(task.taskId, updatePayload, projectId, userId);
       } else {
         // Create new task using POST /api/task endpoint
+        console.log('➕ Creating new task with payload:', payload);
         await taskAPI.createTask(payload, projectId, userId);
       }
 

@@ -10,7 +10,7 @@ import {
   PhoneIcon,
 } from '@heroicons/react/24/outline';
 import { userAPI } from '../../services/api';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
