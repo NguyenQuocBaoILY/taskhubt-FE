@@ -16,7 +16,7 @@ import {
   UserPlusIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
-import { projectAPI, taskAPI, adminAPI } from '../../services/api';
+import { projectAPI, taskAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 import ProjectModal from '../../components/ProjectModal';
 import TaskModal from '../../components/TaskModal';
