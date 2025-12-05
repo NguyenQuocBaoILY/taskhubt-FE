@@ -165,8 +165,43 @@ export default function AdminProjectDetail() {
   useEffect(() => {
     if (activeTab === 'tasks' && id) {
       fetchProjectTasks();
+      // Also ensure members are loaded for assignee name mapping
+      if (members.length === 0) {
+        fetchProjectMembers();
+      }
     }
-  }, [activeTab, id, fetchProjectTasks]);
+    // Also load tasks for overview tab to calculate statistics
+    if (activeTab === 'overview' && id) {
+      fetchProjectTasks();
+    }
+  }, [activeTab, id, fetchProjectTasks, fetchProjectMembers, members.length]);
+
+  // Calculate task statistics dynamically
+  const getTaskStats = () => {
+    const total = tasks.length;
+    const completed = tasks.filter(task => task.status === 'completed').length;
+    const inProgress = tasks.filter(task => task.status === 'in-progress').length;
+    const notStarted = tasks.filter(task => task.status === 'not-started' || !task.status).length;
+    const progressPercentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return { total, completed, inProgress, notStarted, progressPercentage };
+  };
+  
+  const taskStats = getTaskStats();
+
+  // Helper function to get assignee name from members list
+  const getAssigneeName = (assigneeId) => {
+    if (!assigneeId) return 'Chưa phân công';
+    
+    // Try to find in current members list
+    const member = members.find(m => m.userId === assigneeId);
+    if (member) {
+      return member.name || member.username || member.email || assigneeId;
+    }
+    
+    // If not found in members, return the ID (fallback)
+    return assigneeId;
+  };
 
   const handleUpdateProject = async (projectData) => {
     try {
@@ -403,8 +438,7 @@ export default function AdminProjectDetail() {
   };
 
   const getProgressPercentage = () => {
-    // Since API doesn't provide task status breakdown, return 0% for now
-    return 0;
+    return taskStats.progressPercentage;
   };
 
   const isOverdue = (dueDate) => {
@@ -509,7 +543,7 @@ export default function AdminProjectDetail() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Tasks
+            Tasks ({tasks.length})
           </button>
           <button
             onClick={() => setActiveTab('members')}
@@ -529,6 +563,16 @@ export default function AdminProjectDetail() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div>
+            {/* Loading state for stats */}
+            {tasks.length === 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-3"></div>
+                  <p className="text-blue-700">Đang tải thông tin tasks để tính thống kê...</p>
+                </div>
+              </div>
+            )}
+            
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
@@ -538,7 +582,7 @@ export default function AdminProjectDetail() {
                   </div>
                   <div className="ml-5">
                     <p className="text-sm font-medium text-gray-500 truncate">Tổng Tasks</p>
-                    <p className="text-2xl font-bold text-gray-900">{project.taskCount || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.total}</p>
                   </div>
                 </div>
               </div>
@@ -549,7 +593,7 @@ export default function AdminProjectDetail() {
                   </div>
                   <div className="ml-5">
                     <p className="text-sm font-medium text-gray-500 truncate">Hoàn thành</p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.completed}</p>
                   </div>
                 </div>
               </div>
@@ -560,7 +604,7 @@ export default function AdminProjectDetail() {
                   </div>
                   <div className="ml-5">
                     <p className="text-sm font-medium text-gray-500 truncate">Đang thực hiện</p>
-                    <p className="text-2xl font-bold text-gray-900">0</p>
+                    <p className="text-2xl font-bold text-gray-900">{taskStats.inProgress}</p>
                   </div>
                 </div>
               </div>
@@ -595,7 +639,7 @@ export default function AdminProjectDetail() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-600">
-                  {getProgressPercentage()}% hoàn thành (0/{project.taskCount || 0} tasks)
+                  {taskStats.progressPercentage}% hoàn thành ({taskStats.completed}/{taskStats.total} tasks)
                 </p>
               </div>
 
@@ -677,46 +721,54 @@ export default function AdminProjectDetail() {
               ) : (
                 <div className="space-y-4">
                   {tasks.map((task) => (
-                    <div key={task.id || task.taskId} className="border border-gray-200 rounded-lg p-4">
+                    <div key={task.id || task.taskId} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h4 className="text-base font-medium text-gray-900">{task.title}</h4>
                           <p className="text-sm text-gray-500 mt-1">{task.description}</p>
                           {task.assignee && (
-                            <p className="text-xs text-gray-400 mt-1">Phân công: {task.assignee}</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Phân công: {task.assigneeName || getAssigneeName(task.assignee)}
+                            </p>
+                          )}
+                          {task.dueDate && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Hạn: {new Date(task.dueDate).toLocaleDateString('vi-VN')}
+                            </p>
                           )}
                         </div>
                         <div className="ml-4 flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            task.priority === 'high' || task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {task.priority}
-                          </span>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             task.status === 'completed' ? 'bg-green-100 text-green-800' :
                             task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {task.status}
+                            {task.status === 'completed' ? 'Hoàn thành' :
+                             task.status === 'in-progress' ? 'Đang làm' :
+                             'Chưa bắt đầu'}
                           </span>
                           {task.dueDate && isOverdue(task.dueDate) && (
-                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+                            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" title="Quá hạn" />
                           )}
                           
                           {/* Admin action buttons */}
                           {canManageTasks() && (
                             <div className="flex items-center space-x-1 ml-2">
                               <button
-                                onClick={() => handleEditTask(task)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditTask(task);
+                                }}
                                 className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded"
                                 title="Chỉnh sửa task"
                               >
                                 <PencilIcon className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() => handleDeleteTask(task)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTask(task);
+                                }}
                                 className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded"
                                 title="Xóa task"
                               >
@@ -820,6 +872,7 @@ export default function AdminProjectDetail() {
       <TaskModal
         isOpen={showTaskModal}
         onClose={() => {
+          console.log('🔒 Closing TaskModal, resetting selectedTask');
           setShowTaskModal(false);
           setSelectedTask(null);
         }}
