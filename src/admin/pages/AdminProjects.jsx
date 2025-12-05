@@ -8,7 +8,7 @@ import {
   FolderIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline';
-import { projectAPI } from '../../services/api';
+import { projectAPI, taskAPI } from '../../services/api';
 import ProjectModal from '../../components/ProjectModal';
 import { toast } from 'react-hot-toast';
 
@@ -39,9 +39,9 @@ export default function AdminProjects() {
       
       // Only load managers when not searching (to avoid too many API calls)
       if (!debouncedSearchTerm && projectsData.length <= 20) {
-        console.log('👥 Loading managers for projects...');
-        // Load managers for each project
-        const projectsWithManagers = await Promise.all(
+        console.log('👥 Loading managers and task stats for projects...');
+        // Load managers and task statistics for each project
+        const projectsWithData = await Promise.all(
           projectsData.map(async (project) => {
             try {
               const membersRes = await projectAPI.getProjectMembers(project.id);
@@ -50,23 +50,43 @@ export default function AdminProjects() {
               // Find manager in members list
               const manager = members.find(member => member.role === 'manager');
               
+              // Get task statistics
+              let taskStats = { total: 0, completed: 0 };
+              try {
+                const currentUser = JSON.parse(localStorage.getItem('user_info') || '{}');
+                const userId = currentUser.userId || currentUser.id;
+                if (userId) {
+                  const tasksRes = await taskAPI.getProjectTasks(project.id, userId);
+                  const tasks = tasksRes.data || [];
+                  taskStats = {
+                    total: tasks.length,
+                    completed: tasks.filter(task => task.status === 'completed').length
+                  };
+                }
+              } catch (taskError) {
+                console.warn(`⚠️ Could not load tasks for project ${project.id}:`, taskError.message);
+              }
+              
               return {
                 ...project,
                 manager: manager ? {
                   id: manager.id,
                   name: manager.name || manager.email,
                   email: manager.email
-                } : null
+                } : null,
+                taskCount: taskStats.total,
+                completedTasks: taskStats.completed,
+                memberCount: members.length
               };
             } catch (error) {
-              console.warn(`⚠️ Could not load members for project ${project.id}:`, error.message);
-              return { ...project, manager: null };
+              console.warn(`⚠️ Could not load data for project ${project.id}:`, error.message);
+              return { ...project, manager: null, taskCount: 0, completedTasks: 0, memberCount: 0 };
             }
           })
         );
         
-        setProjects(projectsWithManagers);
-        console.log('✅ Projects loaded with managers:', projectsWithManagers.length);
+        setProjects(projectsWithData);
+        console.log('✅ Projects loaded with full data:', projectsWithData.length);
       } else {
         // When searching, just show projects without managers to be fast
         console.log('⚡ Fast search mode - showing projects without manager details');
@@ -208,13 +228,13 @@ export default function AdminProjects() {
                 Quản lý
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trạng thái
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Tiến độ
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Thành viên
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Nhiệm vụ
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hành động
@@ -263,25 +283,29 @@ export default function AdminProjects() {
                   <div className="text-sm text-gray-500">Quản lý dự án</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(project.status || 'active')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
                       <div
                         className="bg-red-600 h-2 rounded-full"
-                        style={{ width: '0%' }}
+                        style={{ width: `${Math.round(((project.completedTasks || 0) / Math.max(project.taskCount || 1, 1)) * 100)}%` }}
                       ></div>
                     </div>
-                    <span className="text-sm text-gray-900">0%</span>
+                    <span className="text-sm text-gray-900">
+                      {Math.round(((project.completedTasks || 0) / Math.max(project.taskCount || 1, 1)) * 100)}%
+                    </span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <UsersIcon className="h-4 w-4 text-gray-400 mr-1" />
                     <span className="text-sm text-gray-900">{project.memberCount || 0}</span>
-                    <span className="text-sm text-gray-500 ml-1">/ {project.taskCount || 0} nhiệm vụ</span>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">
+                    {project.completedTasks || 0} / {project.taskCount || 0}
+                  </div>
+                  <div className="text-sm text-gray-500">nhiệm vụ</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                   <button

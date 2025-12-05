@@ -158,6 +158,10 @@ export default function TaskModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Ngăn event bubbling
+    
+    if (isSubmitting) return; // Ngăn double submission
+    
     setErrors({});
 
     const newErrors = {};
@@ -222,14 +226,15 @@ export default function TaskModal({
         };
         console.log('🔄 Updating task with payload:', updatePayload);
         await taskAPI.updateTask(task.taskId, updatePayload, projectId, userId);
+        onClose();
       } else {
-        // Create new task using POST /api/task endpoint
-        console.log('➕ Creating new task with payload:', payload);
-        await taskAPI.createTask(payload, projectId, userId);
+        // For new tasks, let parent handle API call
+        console.log('➕ Sending payload to parent:', payload);
+        if (onSubmit) {
+          await onSubmit(payload);
+        }
+        onClose();
       }
-
-      if (onSubmit) onSubmit(payload);
-      onClose();
       
       // Show success message
       alert(task ? 'Cập nhật task thành công!' : 'Tạo task mới thành công!');

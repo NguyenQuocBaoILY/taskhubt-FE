@@ -209,6 +209,7 @@ export default function ProjectDetail() {
       console.error('❌ Lỗi tạo task:', error);
       console.error('Error details:', error.response?.data);
       toast.error('Không thể tạo task. Vui lòng thử lại.');
+      throw error; // Re-throw để TaskModal có thể handle
     }
   };
 
