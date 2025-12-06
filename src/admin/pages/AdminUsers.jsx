@@ -9,7 +9,7 @@ import {
   EnvelopeIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
-import { userAPI } from '../../services/api';
+import { userAPI, taskAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 
 export default function AdminUsers() {
@@ -29,21 +29,55 @@ export default function AdminUsers() {
       const response = await userAPI.getUsers({ limit: 1000 });
       const usersData = response.data || [];
       
-      // Transform API response to match UI expectations
-      const transformedUsers = usersData.map((user, index) => ({
-        id: user.userId || user.id || index + 1,
-        userId: user.userId || user.id,
-        username: user.username || `user${index + 1}`,
-        name: user.name || user.username || 'Unknown User',
-        email: user.email || `${user.username || 'user'}@email.com`,
-        phone: user.phone || user.phoneNumber || 'N/A',
-        role: user.role || 'member',
-        status: user.status || user.memberStatus || 'active',
-        projectCount: user.projectCount || 0,
-        taskCount: user.taskCount || 0,
-        joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
-        lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A',
-      }));
+      // Transform API response to match UI expectations and fetch project/task counts
+      const transformedUsersPromises = usersData.map(async (user, index) => {
+        const userId = user.userId || user.id;
+        
+        // Fetch user's projects to count them
+        let projectCount = 0;
+        let taskCount = 0;
+        
+        try {
+          // Get projects where user is a member
+          const projectsResponse = await userAPI.getUserProjects(userId);
+          const projects = projectsResponse.data || [];
+          projectCount = projects.length;
+          
+          // Count all tasks assigned to this user across all their projects
+          for (const project of projects) {
+            try {
+              const tasksResponse = await taskAPI.getProjectTasks(project.projectId || project.id, userId);
+              const tasks = tasksResponse.data || [];
+              // Count tasks where this user is the assignee
+              const userTasks = tasks.filter(task => task.assignee === userId);
+              taskCount += userTasks.length;
+            } catch (taskError) {
+              console.warn(`⚠️ Could not fetch tasks for project ${project.id}:`, taskError.message);
+            }
+          }
+          
+          console.log(`📊 User ${user.username}: ${projectCount} projects, ${taskCount} tasks`);
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch data for user ${userId}:`, error.message);
+        }
+        
+        return {
+          id: userId || index + 1,
+          userId: userId,
+          username: user.username || `user${index + 1}`,
+          name: user.name || user.username || 'Unknown User',
+          email: user.email || `${user.username || 'user'}@email.com`,
+          phone: user.phone || user.phoneNumber || 'N/A',
+          role: user.role || 'member',
+          status: user.status || user.memberStatus || 'active',
+          projectCount: projectCount,
+          taskCount: taskCount,
+          joinedDate: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+          lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A',
+        };
+      });
+      
+      const transformedUsers = await Promise.all(transformedUsersPromises);
       
       setUsers(transformedUsers);
       console.log('✅ Users loaded successfully:', transformedUsers.length);
@@ -54,22 +88,6 @@ export default function AdminUsers() {
       setUsers([]);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Bạn có chắc muốn xóa người dùng này?')) {
-      try {
-        // TODO: Implement user deletion API when available
-        console.log('🗑️ Deleting user:', userId);
-        
-        // Remove user from local state for now
-        setUsers(users.filter(user => user.id !== userId));
-        toast.success('Đã xóa người dùng thành công');
-      } catch (error) {
-        console.error('❌ Error deleting user:', error);
-        toast.error('Không thể xóa người dùng');
-      }
     }
   };
 
@@ -89,20 +107,6 @@ export default function AdminUsers() {
     );
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      active: { label: 'Hoạt động', color: 'bg-green-100 text-green-800' },
-      inactive: { label: 'Không hoạt động', color: 'bg-gray-100 text-gray-800' },
-      pending: { label: 'Chờ xác nhận', color: 'bg-yellow-100 text-yellow-800' },
-    };
-    
-    const config = statusConfig[status] || statusConfig.active;
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
-  };
 
   const filteredUsers = users.filter(user =>
     (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -165,9 +169,6 @@ export default function AdminUsers() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hoạt động
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Hành động
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -213,23 +214,7 @@ export default function AdminUsers() {
                     {user.taskCount} nhiệm vụ
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Chỉnh sửa"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      className="text-red-600 hover:text-red-900"
-                      title="Xóa"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
+                
               </tr>
             ))}
           </tbody>

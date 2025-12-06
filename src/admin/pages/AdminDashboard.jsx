@@ -9,7 +9,7 @@ import {
   CheckCircleIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { projectAPI, userAPI, taskAPI } from '../../services/api';
+import { projectAPI, userAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
 
 export default function AdminDashboard() {
