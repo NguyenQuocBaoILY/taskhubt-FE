@@ -563,16 +563,6 @@ export default function AdminProjectDetail() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div>
-            {/* Loading state for stats */}
-            {tasks.length === 0 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-3"></div>
-                  <p className="text-blue-700">Đang tải thông tin tasks để tính thống kê...</p>
-                </div>
-              </div>
-            )}
-            
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6">
