@@ -240,13 +240,7 @@ export function AuthProvider({ children }) {
       
       // Store complete user info for API usage (including userId)
       // Backend trả về isAdmin trong JWT claims có thể là string "true"/"false"
-      let isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
-      
-      // Fallback: Check username for admin accounts (temporary)
-      if (!isAdminValue && (user.username === 'admin' || user.email?.includes('admin'))) {
-        console.log('⚠️ Admin fallback triggered for:', user.username, user.email);
-        isAdminValue = true;
-      }
+      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;
       
       console.log('🔍 Debug isAdmin parsing:', {
         originalValue: user.isAdmin,
@@ -264,7 +258,7 @@ export function AuthProvider({ children }) {
         name: user.name || user.username, // Đảm bảo có name field
         avatar: user.avatar,
         status: user.status,
-        isAdmin: isAdminValue // Properly parsed boolean value
+        isAdmin: isAdminValue // isAdmin stored as number (0 | 1)
       }));
       
       console.log('💾 Stored user_info with isAdmin:', isAdminValue);
@@ -358,7 +352,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user_email', user.email);
 
       // Store complete user info for API usage (including userId)
-      const isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
+      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;  
       
       console.log('🔍 Signup - Debug isAdmin parsing:', {
         originalValue: user.isAdmin,
@@ -468,7 +462,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user_email', user.email);
       
       // Store complete user info for API usage
-      const isAdminValue = user.isAdmin === true || user.isAdmin === "true" || user.isAdmin === "True";
+      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;
       
       console.log('🔍 Google Login - Debug isAdmin parsing:', {
         originalValue: user.isAdmin,
