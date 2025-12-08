@@ -1,0 +1,49 @@
+image: node:18
+
+stages:
+  - build
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+variables:
+  DIST_DIR: "dist"
+
+before_script:
+  - npm install
+
+build_frontend:
+  stage: build
+  tags:
+    - backend
+  script:
+    - echo "Building frontend..."
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 hour
+
+deploy_frontend:
+  stage: deploy
+  tags:
+    - backend
+  dependencies:
+    - build_frontend
+  script:
+    - echo "Installing AWS CLI..."
+    - apt-get update -y
+    - apt-get install -y awscli
+
+    - echo "Syncing files to S3..."
+    - aws s3 sync dist/ "s3://$S3_BUCKET/" --delete
+
+    - echo "Invalidating CloudFront cache..."
+    - aws cloudfront create-invalidation \
+        --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+        --paths "/*"
+
+  only:
+    - main
