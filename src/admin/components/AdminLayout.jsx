@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useContext';
+import { checkIsAdmin, getUserInfo } from '../../utils/authHelper';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -30,27 +31,20 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if admin is authenticated
+    // ✅ Check if admin is authenticated using helper function
     const checkAuth = () => {
-      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userInfo = getUserInfo();
       const accessToken = localStorage.getItem('access_token');
       
-      console.log('🔐 Admin auth check:');
-      console.log('- Full userInfo object:', userInfo);
-      console.log('- userInfo.isAdmin value:', userInfo.isAdmin);
-      console.log('- userInfo.isAdmin type:', typeof userInfo.isAdmin);
-      console.log('- hasToken:', !!accessToken);
+      console.log('🔒 Admin auth check:');
+      console.log('- User:', userInfo?.name);
+      console.log('- Raw isAdmin value:', userInfo?.isAdmin, '(type:', typeof userInfo?.isAdmin, ')');
+      console.log('- Has token:', !!accessToken);
       
-      // Handle both boolean and string values from JWT + admin username fallback
-      let isAdminCheck = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
+      // ✅ Use helper function instead of inline logic
+      const isAdminCheck = checkIsAdmin(userInfo);
       
-      // Fallback: Check for admin username/email (temporary until backend fix)
-      if (!isAdminCheck && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
-        console.log('⚠️ Admin fallback triggered in AdminLayout for:', userInfo.username, userInfo.email);
-        isAdminCheck = true;
-      }
-      
-      console.log('- isAdminCheck result:', isAdminCheck);
+      console.log('- Is admin (parsed):', isAdminCheck);
       
       // Allow access only if user is authenticated AND has admin privileges
       const hasAdminAccess = accessToken && isAdminCheck;
@@ -58,9 +52,9 @@ export default function AdminLayout() {
       console.log('- Final hasAdminAccess:', hasAdminAccess);
       
       if (!hasAdminAccess) {
-        console.log('❌ Admin access denied');
-        console.log('- Has token:', !!accessToken);
-        console.log('- Is admin:', isAdminCheck);
+        console.log('❌ Admin access denied - Redirecting...');
+      } else {
+        console.log('✅ Admin access granted');
       }
       
       setIsAuthenticated(!!hasAdminAccess);
@@ -79,7 +73,7 @@ export default function AdminLayout() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Đang kiểm tra quyền truy cập...</p>
         </div>
       </div>
@@ -98,7 +92,7 @@ export default function AdminLayout() {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
           
           {/* Mobile sidebar */}
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-gradient-to-b from-blue-600 to-gray-600">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-gradient-to-b from-blue-600 to-blue-800">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
@@ -123,7 +117,7 @@ export default function AdminLayout() {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                         isActive
                           ? 'bg-white bg-opacity-20 text-white'
                           : 'text-blue-100 hover:bg-white hover:bg-opacity-10 hover:text-white'
@@ -143,7 +137,7 @@ export default function AdminLayout() {
             </div>
             
             {/* Mobile user info */}
-            <div className="flex-shrink-0 flex border-t border-blue-400 border-opacity-50 p-4">
+            <div className="flex-shrink-0 flex border-t border-blue-500 p-4">
               <div className="flex items-center">
                 <div className="h-10 w-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
                   <span className="text-white font-medium text-sm">
@@ -156,7 +150,7 @@ export default function AdminLayout() {
                   </p>
                   <button
                     onClick={handleLogout}
-                    className="text-xs text-blue-100 hover:text-white"
+                    className="text-xs text-blue-100 hover:text-white transition-colors"
                   >
                     Đăng xuất
                   </button>
@@ -170,7 +164,7 @@ export default function AdminLayout() {
       {/* Static sidebar for desktop */}
       <div className="hidden md:flex md:flex-shrink-0">
         <div className="flex flex-col w-64">
-          <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-gradient-to-b from-blue-600 to-gray-600">
+          <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-gradient-to-b from-blue-600 to-blue-800">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
                 <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center">
@@ -186,7 +180,7 @@ export default function AdminLayout() {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
                         isActive
                           ? 'bg-white bg-opacity-20 text-white'
                           : 'text-blue-100 hover:bg-white hover:bg-opacity-10 hover:text-white'
@@ -205,7 +199,7 @@ export default function AdminLayout() {
             </div>
             
             {/* Desktop user info */}
-            <div className="flex-shrink-0 flex border-t border-blue-400 border-opacity-50 p-4">
+            <div className="flex-shrink-0 flex border-t border-blue-500 p-4">
               <div className="flex items-center w-full">
                 <div className="h-9 w-9 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
                   <span className="text-white font-medium text-sm">
@@ -216,11 +210,11 @@ export default function AdminLayout() {
                   <p className="text-sm font-medium text-white">
                     {user?.name || 'Admin'}
                   </p>
-                  <p className="text-xs text-red-100">Quản trị viên</p>
+                  <p className="text-xs text-blue-200">Quản trị viên</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="ml-2 p-1 rounded-md text-red-100 hover:text-white hover:bg-white hover:bg-opacity-10"
+                  className="ml-2 p-1 rounded-md text-blue-200 hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors"
                   title="Đăng xuất"
                 >
                   <ArrowRightOnRectangleIcon className="h-5 w-5" />
@@ -237,7 +231,7 @@ export default function AdminLayout() {
         <div className="md:hidden">
           <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
             <button
-              className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500 md:hidden"
+              className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 md:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Bars3Icon className="h-6 w-6" />
@@ -251,7 +245,7 @@ export default function AdminLayout() {
               <div className="ml-4 flex items-center md:ml-6">
                 <button
                   onClick={handleLogout}
-                  className="p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <ArrowRightOnRectangleIcon className="h-6 w-6" />
                 </button>

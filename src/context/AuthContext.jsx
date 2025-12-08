@@ -1,6 +1,7 @@
 import { createContext, useReducer, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import authService from '../services/authService';
+import { checkIsAdmin } from '../utils/authHelper';
 
 // Initial state
 const initialState = {
@@ -97,54 +98,58 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Initialize authentication state immediately from localStorage
+  // Initialize authentication state
   useEffect(() => {
     const handleTokenExpired = () => {
-      console.log('🔔 Received token-expired event, logging out...');
+      console.log('🔒 Token expired, logging out...');
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     };
 
-    // Listen for token expiration events from API interceptor
     window.addEventListener('token-expired', handleTokenExpired);
 
     const initializeAuth = () => {
-      console.log('🔐 Khởi tạo authentication từ localStorage...');
+      console.log('🔍 Initializing authentication from localStorage...');
       
       const token = localStorage.getItem('access_token');
       const userName = localStorage.getItem('user_name');
       const userEmail = localStorage.getItem('user_email');
       
       if (token && userName) {
-        // ✅ CÓ TOKEN → SET AUTHENTICATED NGAY để tránh redirect
-        console.log('✅ Tìm thấy token, đặt user authenticated ngay lập tức');
+        console.log('✅ Token found, setting authenticated state');
         
-        // ❌ KHÔNG dùng cached user info ngay lập tức
-        // Chỉ set authenticated state, user info sẽ được load từ API
         dispatch({
           type: AUTH_ACTIONS.INIT_FROM_STORAGE,
           payload: {
             hasToken: true,
-            user: null, // Không dùng cached user
+            user: null,
             token
           }
         });
         
-        // ✅ Load user info từ API ngay lập tức
+        // Load user info from API
         authService.getCurrentUser()
           .then(user => {
-            console.log('✅ Token verified với API:', user.name || user.username);
-            console.log('👤 Full user data from /api/Auth/me:', user);
+            console.log('✅ Token verified with API:', user.name || user.username);
+            console.log('👤 Raw API response:', user);
             
-            // API giờ chỉ trả về {userId, name, email} - đảm bảo có đủ fields cần thiết
+            // Build user data object - KEEP original isAdmin value
             const userData = {
               userId: user.userId,
-              name: user.name || user.username || userName || 'Unknown User', // Ưu tiên name từ API, fallback về cached userName
-              username: user.username || user.name || userName, // Fallback cho compatibility
+              name: user.name || user.username || userName,
+              username: user.username || user.name || userName,
               email: user.email,
-              ...user // Spread để giữ các fields khác nếu có
+              avatar: user.avatar,
+              status: user.status,
+              isAdmin: user.isAdmin, // ✅ Keep original value (1, "1", true, etc.)
+              authProvider: user.authProvider
             };
             
-            console.log('📝 Final userData being set:', userData);
+            // Log admin check
+            console.log('🔑 Admin check:', {
+              rawValue: user.isAdmin,
+              rawType: typeof user.isAdmin,
+              isAdmin: checkIsAdmin(userData)
+            });
             
             dispatch({
               type: AUTH_ACTIONS.SET_USER,
@@ -153,48 +158,28 @@ export function AuthProvider({ children }) {
           })
           .catch(error => {
             console.warn('⚠️ Token verification failed:', error.message);
-            // Chỉ logout nếu là 401/403 - token thực sự invalid
+            
             if (error.response?.status === 401 || error.response?.status === 403) {
               console.log('❌ Token invalid, logging out...');
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
-              localStorage.removeItem('user_name');
-              localStorage.removeItem('user_email');
-              localStorage.removeItem('user_info');
+              localStorage.clear();
               dispatch({ type: AUTH_ACTIONS.LOGOUT });
             } else {
-              // Network errors hoặc server errors - dùng cached user info
-              console.log('📡 Network/server error, using cached user info temporarily');
+              console.log('📡 Network error, using cached info');
               const fallbackUser = {
-                name: userName || 'Unknown User', // Ưu tiên name field
-                username: userName, // Keep username for compatibility
-                email: userEmail
+                name: userName || 'Unknown User',
+                username: userName,
+                email: userEmail,
+                isAdmin: 0 // Safe default
               };
               dispatch({
                 type: AUTH_ACTIONS.SET_USER,
                 payload: fallbackUser
               });
-              // Retry sau 5 giây nếu là network error
-              if (!error.response) {
-                setTimeout(() => {
-                  authService.getCurrentUser()
-                    .then(user => {
-                      dispatch({
-                        type: AUTH_ACTIONS.SET_USER,
-                        payload: user
-                      });
-                    })
-                    .catch(() => {
-                      console.log('📡 Retry failed, but keeping user logged in');
-                    });
-                }, 5000);
-              }
             }
           });
           
       } else {
-        // ✅ KHÔNG CÓ TOKEN → Set not authenticated
-        console.log('❌ Không tìm thấy token, user chưa login');
+        console.log('❌ No token found');
         dispatch({
           type: AUTH_ACTIONS.INIT_FROM_STORAGE,
           payload: {
@@ -208,7 +193,6 @@ export function AuthProvider({ children }) {
 
     initializeAuth();
 
-    // Cleanup event listener
     return () => {
       window.removeEventListener('token-expired', handleTokenExpired);
     };
@@ -219,54 +203,42 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
-      // Validate input
       if (!email || !password) {
         throw new Error('Email và mật khẩu là bắt buộc');
       }
 
-      console.log('🔐 Attempting login with real API...');
+      console.log('🔐 Attempting login...');
       
-      // Call real API
       const response = await authService.login(email, password);
-      
-      // Extract data from API response
       const { user, access_token, refresh_token } = response;
       
-      // Store tokens and user info
+      // Store tokens
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
+      localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
       
-      // Store complete user info for API usage (including userId)
-      // Backend trả về isAdmin trong JWT claims có thể là string "true"/"false"
-      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;
-      
-      console.log('🔍 Debug isAdmin parsing:', {
-        originalValue: user.isAdmin,
-        originalType: typeof user.isAdmin,
-        parsedValue: isAdminValue,
-        username: user.username,
-        email: user.email,
-        fullUser: user
-      });
-      
+      // Store user info - KEEP original isAdmin value
       localStorage.setItem('user_info', JSON.stringify({
         userId: user.userId,
         username: user.username,
         email: user.email,
-        name: user.name || user.username, // Đảm bảo có name field
+        name: user.name || user.username,
         avatar: user.avatar,
         status: user.status,
-        isAdmin: isAdminValue // isAdmin stored as number (0 | 1)
+        isAdmin: user.isAdmin // ✅ Keep original (1, "1", true, etc.)
       }));
       
-      console.log('💾 Stored user_info with isAdmin:', isAdminValue);
+      console.log('🔍 Login - Admin check:', {
+        rawValue: user.isAdmin,
+        rawType: typeof user.isAdmin,
+        isAdmin: checkIsAdmin(user)
+      });
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: {
-          user,
+          user, // Keep original user object
           token: access_token,
         },
       });
@@ -280,20 +252,15 @@ export function AuthProvider({ children }) {
       let errorMessage = 'Đăng nhập thất bại';
       
       if (error.response) {
-        // API returned error
         if (error.response.status === 401) {
           errorMessage = 'Email hoặc mật khẩu không đúng';
         } else if (error.response.status === 429) {
-          errorMessage = 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau';
+          errorMessage = 'Quá nhiều lần thử. Vui lòng thử lại sau';
         } else {
           errorMessage = error.response.data?.message || 'Lỗi server';
         }
       } else if (error.request) {
-        // Network error
-        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng';
-      } else {
-        // Other errors
-        errorMessage = error.message || 'Đăng nhập thất bại';
+        errorMessage = 'Không thể kết nối đến server';
       }
       
       dispatch({
@@ -310,34 +277,12 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
-      console.log('📝 Attempting signup with real API...');
+      console.log('🔐 Attempting signup...');
       
-      // Call real API
       const response = await authService.register(userData);
-      console.log('📝 Signup response:', response);
       
-      // Check if registration needs separate login
       if (response.needsLogin) {
-        console.log('🔄 Registration successful but needs login');
-        
-        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful but login failed' });
-        
-        return { 
-          success: true, 
-          needsLogin: true, 
-          message: response.message || 'Đăng ký thành công! Vui lòng đăng nhập.' 
-        };
-      }
-      
-      // Extract data from API response
-      const { user, access_token, refresh_token } = response;
-      
-      // Check if we have valid tokens
-      if (!access_token || !user) {
-        console.log('⚠️ Registration successful but no tokens provided');
-        
-        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful but authentication failed' });
-        
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful' });
         return { 
           success: true, 
           needsLogin: true, 
@@ -345,38 +290,33 @@ export function AuthProvider({ children }) {
         };
       }
       
-      // Store tokens and user info
+      const { user, access_token, refresh_token } = response;
+      
+      if (!access_token || !user) {
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'No tokens' });
+        return { 
+          success: true, 
+          needsLogin: true, 
+          message: 'Đăng ký thành công! Vui lòng đăng nhập.' 
+        };
+      }
+      
+      // Store tokens
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
+      localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
 
-      // Store complete user info for API usage (including userId)
-      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;  
-      
-      console.log('🔍 Signup - Debug isAdmin parsing:', {
-        originalValue: user.isAdmin,
-        originalType: typeof user.isAdmin,
-        parsedValue: isAdminValue
-      });
-      
+      // Store user info - KEEP original isAdmin
       localStorage.setItem('user_info', JSON.stringify({
-        userId: user.userId || user.id || user.user_id, // Try multiple field names
-        username: user.username,
-        email: user.email,
-        name: user.name || user.username, // Đảm bảo có name field
-        avatar: user.avatar,
-        status: user.status,
-        isAdmin: isAdminValue // Properly parsed boolean value
-      }));
-
-      console.log('💾 Saved user_info after signup:', {
-        userId: user.userId || user.id || user.user_id,
+        userId: user.userId || user.id,
         username: user.username,
         email: user.email,
         name: user.name || user.username,
-        originalUser: user
-      });
+        avatar: user.avatar,
+        status: user.status,
+        isAdmin: user.isAdmin // ✅ Keep original
+      }));
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
@@ -386,26 +326,18 @@ export function AuthProvider({ children }) {
         },
       });
 
-      console.log('✅ Signup successful:', user.name || user.username);
-      toast.success('Đăng ký và đăng nhập thành công!');
+      console.log('✅ Signup successful:', user.name);
+      toast.success('Đăng ký thành công!');
       return { success: true };
     } catch (error) {
       console.error('❌ Signup failed:', error);
       
       let errorMessage = 'Đăng ký thất bại';
       
-      if (error.response) {
-        if (error.response.status === 409) {
-          errorMessage = 'Email này đã được sử dụng';
-        } else if (error.response.status === 400) {
-          errorMessage = error.response.data?.message || 'Dữ liệu không hợp lệ';
-        } else {
-          errorMessage = error.response.data?.message || 'Lỗi server';
-        }
-      } else if (error.request) {
-        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng';
-      } else {
-        errorMessage = error.message || 'Đăng ký thất bại';
+      if (error.response?.status === 409) {
+        errorMessage = 'Email đã được sử dụng';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response.data?.message || 'Dữ liệu không hợp lệ';
       }
       
       dispatch({
@@ -417,102 +349,62 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Logout function - optimized for speed
+  // Logout function
   const logout = async () => {
-    console.log('🚪 Fast logout initiated...');
-    
-    // 1. Immediately update UI state (fastest)
+    console.log('🚪 Logging out...');
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    
-    // 2. Clear all localStorage in batch
-    const keysToRemove = ['access_token', 'refresh_token', 'user_name', 'user_email', 'user_info'];
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    
-    // 3. Show success message immediately
+    localStorage.clear();
     toast.success('Đăng xuất thành công!');
     
-    // 4. Call API in background (non-blocking)
     try {
-      authService.logout().catch(error => {
-        console.warn('⚠️ Background logout API error:', error.message);
-      });
-      console.log('✅ Logout completed (API call in progress)');
+      await authService.logout();
     } catch (error) {
-      console.warn('⚠️ Logout API error (UI already updated):', error.message);
+      console.warn('⚠️ Logout API error:', error.message);
     }
   };
 
-  // Google Login function
+  // Google Login
   const googleLogin = async (idToken) => {
     try {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
 
-      console.log('🔐 Attempting Google login with real API...');
+      console.log('🔐 Google login...');
       
-      // Call Google login API
       const response = await authService.googleLogin(idToken, 'web');
-      
-      // Extract data from API response
       const { user, access_token, refresh_token, isNewUser } = response;
       
-      // Store tokens and user info (same as regular login)
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username); // Ưu tiên name
+      localStorage.setItem('user_name', user.name || user.username);
       localStorage.setItem('user_email', user.email);
-      
-      // Store complete user info for API usage
-      const isAdminValue = Number(user.isAdmin) === 1 ? 1 : 0;
-      
-      console.log('🔍 Google Login - Debug isAdmin parsing:', {
-        originalValue: user.isAdmin,
-        originalType: typeof user.isAdmin,
-        parsedValue: isAdminValue
-      });
       
       localStorage.setItem('user_info', JSON.stringify({
         userId: user.userId,
         username: user.username,
         email: user.email,
-        name: user.name || user.username, // Đảm bảo có name field
+        name: user.name || user.username,
         avatar: user.avatar,
         status: user.status,
-        isAdmin: isAdminValue, // Properly parsed boolean value
-        authProvider: 'GOOGLE' // Mark as Google user
+        isAdmin: user.isAdmin, // ✅ Keep original
+        authProvider: 'GOOGLE'
       }));
 
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: {
-          user: user,
+          user,
           token: access_token
         }
       });
 
-      // Show appropriate message (only if not from callback)
-      if (isNewUser) {
-        console.log('🎉 New user created via Google:', user.name);
-      } else {
-        console.log('👋 Existing user logged in via Google:', user.name);
-      }
-      
-      console.log('✅ Google login successful for:', user.name || user.username);
+      console.log('✅ Google login successful');
       return { success: true, isNewUser };
     } catch (error) {
       console.error('❌ Google login failed:', error);
       
       let errorMessage = 'Đăng nhập Google thất bại';
-      
-      if (error.response) {
-        if (error.response.status === 400) {
-          errorMessage = 'Token Google không hợp lệ';
-        } else {
-          errorMessage = error.response.data?.message || 'Lỗi server';
-        }
-      } else if (error.request) {
-        errorMessage = 'Không thể kết nối đến server';
-      } else {
-        errorMessage = error.message || 'Đăng nhập Google thất bại';
+      if (error.response?.status === 400) {
+        errorMessage = 'Token Google không hợp lệ';
       }
       
       dispatch({
@@ -525,12 +417,10 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   };
 
-  // Update user function
   const updateUser = (userData) => {
     dispatch({
       type: AUTH_ACTIONS.SET_USER,
