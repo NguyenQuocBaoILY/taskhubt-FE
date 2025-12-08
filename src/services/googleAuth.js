@@ -22,6 +22,7 @@ class GoogleAuthService {
       redirect_uri: this.config.redirectUri,
       identity_provider: this.config.identityProvider, // 'Google'
       state: this.config.state,
+      prompt: 'select_account', // Force account selection
     });
 
     const authUrl = `${this.config.authorizeEndpoint()}?${params.toString()}`;

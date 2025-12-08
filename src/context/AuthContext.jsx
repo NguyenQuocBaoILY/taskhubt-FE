@@ -362,15 +362,23 @@ export function AuthProvider({ children }) {
 
   // Logout function
   const logout = async () => {
-    console.log('🚪 Logging out...');
+    // Get authProvider BEFORE clearing
+    const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+    const authProvider = userInfo.authProvider || state.user?.authProvider;
+    
+    // Clear immediately
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
     localStorage.clear();
-    toast.success('Đăng xuất thành công!');
     
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.warn('⚠️ Logout API error:', error.message);
+    // Fire and forget backend logout
+    authService.logout().catch(() => {});
+    
+    // Redirect immediately
+    if (authProvider === 'COGNITO_OAUTH' || authProvider === 'GOOGLE_COGNITO') {
+      window.location.href = `https://ap-southeast-146xjlc8vb.auth.ap-southeast-1.amazoncognito.com/logout?client_id=4cjjbi67t2nldlm7od9q24nf9u&logout_uri=${encodeURIComponent('http://localhost:5173/login')}`;
+    } else {
+      toast.success('Đăng xuất thành công!');
+      window.location.href = '/login';
     }
   };
 
