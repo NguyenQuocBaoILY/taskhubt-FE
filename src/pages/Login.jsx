@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useContext';
-import { initGoogleAuth, signInWithGoogle } from '../services/googleAuth';
+import { signInWithGoogle } from '../services/googleAuth';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { checkIsAdmin, getUserInfo } from '../utils/authHelper';
@@ -14,7 +14,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [googleAuthReady, setGoogleAuthReady] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({
     hasUpperCase: false,
     hasLowerCase: false,
@@ -22,58 +21,20 @@ export default function Login() {
     hasSpecialChar: false,
     isLongEnough: false,
   });
-  const { login, googleLogin, isLoading } = useAuth();
+  const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const setupGoogleAuth = async () => {
-      try {
-        await initGoogleAuth();
-        setGoogleAuthReady(true);
-      } catch (error) {
-        console.error('Failed to initialize Google Auth:', error);
-      }
-    };
-
-    setupGoogleAuth();
-  }, []);
-
   const handleGoogleLogin = async () => {
-    if (!googleAuthReady) {
-      toast.error('Google Auth chưa sẵn sàng');
-      return;
-    }
-
     try {
       setIsGoogleLoading(true);
-      toast.loading('Đang đăng nhập Google...', { id: 'google-signin' });
+      toast.loading('Đang chuyển hướng đến Google...', { id: 'google-signin' });
       
-      const idToken = await signInWithGoogle();
-      if (idToken) {
-        const result = await googleLogin(idToken);
-        if (result.success) {
-          const userInfo = getUserInfo();
-          const isAdmin = checkIsAdmin(userInfo);
-          
-          console.log('👤 Google Login - User:', userInfo?.name);
-          console.log('🔑 Is Admin:', isAdmin, '(raw:', userInfo?.isAdmin, ')');
-          
-          toast.success('Đăng nhập Google thành công!', { id: 'google-signin' });
-          
-          // ✅ Role-based redirect
-          if (isAdmin) {
-            console.log('➡️ Redirecting to Admin Dashboard');
-            navigate('/admin', { replace: true });
-          } else {
-            console.log('➡️ Redirecting to User Dashboard');
-            navigate('/dashboard', { replace: true });
-          }
-        }
-      }
+      // Redirect to Cognito Hosted UI for Google login
+      await signInWithGoogle();
+      
     } catch (error) {
       console.error('Google login failed:', error);
-      toast.error('Đăng nhập Google thất bại', { id: 'google-signin' });
-    } finally {
+      toast.error('Không thể kết nối đến Google', { id: 'google-signin' });
       setIsGoogleLoading(false);
     }
   };

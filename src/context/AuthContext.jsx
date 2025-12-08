@@ -374,58 +374,11 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Google Login
-  const googleLogin = async (idToken) => {
-    try {
-      dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-
-      console.log('🔐 Google login...');
-      
-      const response = await authService.googleLogin(idToken, 'web');
-      const { user, access_token, refresh_token, isNewUser } = response;
-      
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('user_name', user.name || user.username);
-      localStorage.setItem('user_email', user.email);
-      
-      localStorage.setItem('user_info', JSON.stringify({
-        userId: user.userId,
-        username: user.username,
-        email: user.email,
-        name: user.name || user.username,
-        avatar: user.avatar,
-        status: user.status,
-        isAdmin: user.isAdmin, // ✅ Keep original
-        authProvider: 'GOOGLE'
-      }));
-
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: {
-          user,
-          token: access_token
-        }
-      });
-
-      console.log('✅ Google login successful');
-      return { success: true, isNewUser };
-    } catch (error) {
-      console.error('❌ Google login failed:', error);
-      
-      let errorMessage = 'Đăng nhập Google thất bại';
-      if (error.response?.status === 400) {
-        errorMessage = 'Token Google không hợp lệ';
-      }
-      
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: errorMessage,
-      });
-      
-      toast.error(errorMessage);
-      return { success: false, error: errorMessage };
-    }
+  // Google Login - No longer needed as FE handles tokens directly from Cognito
+  // Kept for backward compatibility but can be removed
+  const googleLogin = async () => {
+    console.warn('⚠️ googleLogin() is deprecated. Google auth now handled via Cognito OAuth flow in GoogleCallback.jsx');
+    return { success: false, error: 'Use Cognito OAuth flow instead' };
   };
 
   const clearError = () => {

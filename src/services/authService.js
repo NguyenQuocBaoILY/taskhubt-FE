@@ -145,22 +145,12 @@ export const authService = {
     }
   },
 
-  // Google Login
-  googleLogin: async (idToken) => {
-    const response = await authAPI.post('/api/Auth/google-cognito-login', {
-      idToken: idToken,
-    });
-    
-    // Backend returns: { accessToken, refreshToken, user, message, isNewUser }
-    const { accessToken, refreshToken, user, message, isNewUser } = response.data;
-    
-    return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      user: user,
-      message: message,
-      isNewUser: isNewUser
-    };
+  // Google Login - DEPRECATED
+  // Google authentication now handled via Cognito OAuth flow
+  // FE exchanges code for tokens directly with Cognito (no BE involved)
+  googleLogin: async () => {
+    console.warn('⚠️ authService.googleLogin() is deprecated. Use Cognito OAuth flow instead.');
+    throw new Error('Google login now handled via Cognito OAuth. See GoogleCallback.jsx');
   },
 
   // Forgot Password
