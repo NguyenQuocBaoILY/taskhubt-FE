@@ -12,6 +12,7 @@ variables:
   DIST_DIR: "dist"
 
 before_script:
+  - node -v
   - npm install
 
 build_frontend:
@@ -33,17 +34,14 @@ deploy_frontend:
   dependencies:
     - build_frontend
   script:
-    - echo "Installing AWS CLI..."
-    - apt-get update -y
-    - apt-get install -y awscli
+    - echo "Using pre-installed AWS CLI on Windows runner..."
+    - aws --version
 
     - echo "Syncing files to S3..."
     - aws s3 sync dist/ "s3://$S3_BUCKET/" --delete
 
     - echo "Invalidating CloudFront cache..."
-    - aws cloudfront create-invalidation \
-        --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
-        --paths "/*"
-
+    - aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
   only:
     - main
+
