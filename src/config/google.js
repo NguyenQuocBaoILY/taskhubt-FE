@@ -6,8 +6,6 @@ export const GOOGLE_CONFIG = {
   // Cognito App Client ID
   clientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '4cjjbi67t2nldlm7od9q24nf9u',
   
-  // Cognito App Client Secret
-  clientSecret: import.meta.env.VITE_COGNITO_CLIENT_SECRET || '1ae1tpt7s8csiu8f81bg9htpiedge9kjibbcsvmonos77qe1qoo5',
   
   // OAuth Callback URL
   redirectUri: import.meta.env.VITE_COGNITO_OAUTH_REDIRECT_URI || 'http://localhost:5173/auth/google/callback',
@@ -16,7 +14,7 @@ export const GOOGLE_CONFIG = {
   responseType: 'code',
   
   // OAuth Scope
-  scope: 'openid email profile',
+  scope: 'email openid',
   
   // Identity Provider (Google)
   identityProvider: 'Google',

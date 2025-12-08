@@ -51,44 +51,41 @@ class GoogleAuthService {
   }
 
   /**
-   * Exchange authorization code for tokens
+   * Exchange authorization code for tokens via Backend
    * @param {string} code - Authorization code from callback
-   * @returns {Promise<Object>} Token response { access_token, id_token, refresh_token, token_type, expires_in }
+   * @returns {Promise<Object>} Token response from backend
    */
   async exchangeCodeForTokens(code) {
     try {
-      console.log('🔄 Exchanging authorization code for tokens...');
+      console.log('🔄 Exchanging authorization code via backend...');
 
-      // Build form data for token endpoint
-      const params = new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: this.config.clientId,
-        code: code,
-        redirect_uri: this.config.redirectUri,
-      });
-
-      // Use Basic Auth with client_id and client_secret
-      const auth = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:15155';
       
       const response = await axios.post(
-        this.config.tokenEndpoint(),
-        params.toString(),
+        `${baseURL}/api/Auth/cognito-oauth-exchange`,
+        {
+          code: code,
+          redirectUri: this.config.redirectUri
+        },
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
           },
         }
       );
 
       console.log('✅ Token exchange successful');
       
-      // Cognito returns: { access_token, id_token, refresh_token, token_type, expires_in }
-      return response.data;
+      // Backend returns: { accessToken, refreshToken, user, message }
+      return {
+        access_token: response.data.accessToken,
+        refresh_token: response.data.refreshToken,
+        user: response.data.user
+      };
       
     } catch (error) {
       console.error('❌ Token exchange failed:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.error_description || 'Failed to exchange authorization code for tokens');
+      throw new Error(error.response?.data?.message || 'Failed to exchange authorization code for tokens');
     }
   }
 
@@ -160,35 +157,31 @@ class GoogleAuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Refresh access token using refresh token via Backend
    * @param {string} refreshToken - Refresh token
    * @returns {Promise<Object>} New tokens
    */
   async refreshAccessToken(refreshToken) {
     try {
-      console.log('🔄 Refreshing access token...');
+      console.log('🔄 Refreshing access token via backend...');
 
-      const params = new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: this.config.clientId,
-        refresh_token: refreshToken,
-      });
-
-      const auth = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:15155';
 
       const response = await axios.post(
-        this.config.tokenEndpoint(),
-        params.toString(),
+        `${baseURL}/api/Auth/refresh`,
+        { refreshToken },
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
           },
         }
       );
 
       console.log('✅ Token refresh successful');
-      return response.data;
+      return {
+        access_token: response.data.accessToken,
+        refresh_token: response.data.refreshToken
+      };
       
     } catch (error) {
       console.error('❌ Token refresh failed:', error.response?.data || error.message);
@@ -197,28 +190,22 @@ class GoogleAuthService {
   }
 
   /**
-   * Revoke tokens (logout)
-   * @param {string} token - Access or refresh token to revoke
+   * Revoke tokens (logout) - handled by backend
+   * @param {string} token - Refresh token to revoke
    * @returns {Promise<void>}
    */
   async revokeToken(token) {
     try {
-      console.log('🔄 Revoking token...');
+      console.log('🔄 Revoking token via backend...');
 
-      const params = new URLSearchParams({
-        token: token,
-        client_id: this.config.clientId,
-      });
-
-      const auth = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:15155';
 
       await axios.post(
-        `${this.config.cognitoDomain}/oauth2/revoke`,
-        params.toString(),
+        `${baseURL}/api/Auth/logout`,
+        { refreshToken: token },
         {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
           },
         }
       );

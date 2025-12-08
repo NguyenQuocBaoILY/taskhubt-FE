@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { exchangeCodeForTokens, validateOAuthState, getUserInfoFromToken } from '../services/googleAuth';
+import { exchangeCodeForTokens, validateOAuthState } from '../services/googleAuth';
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
@@ -59,44 +59,44 @@ const GoogleCallback = () => {
           return;
         }
 
-        // Exchange authorization code for tokens
+        // Exchange authorization code for tokens via backend
         toast.loading('Đang xử lý đăng nhập Google...', { id: 'google-callback' });
         
-        const tokens = await exchangeCodeForTokens(code);
+        const response = await exchangeCodeForTokens(code);
         
-        console.log('🎫 Tokens received:', {
-          hasAccessToken: !!tokens.access_token,
-          hasIdToken: !!tokens.id_token,
-          hasRefreshToken: !!tokens.refresh_token,
-          tokenType: tokens.token_type,
-          expiresIn: tokens.expires_in,
+        console.log('🎫 Response received:', {
+          hasAccessToken: !!response.access_token,
+          hasRefreshToken: !!response.refresh_token,
+          hasUser: !!response.user,
         });
 
         // Store tokens in localStorage
-        localStorage.setItem('access_token', tokens.access_token);
-        localStorage.setItem('refresh_token', tokens.refresh_token);
+        localStorage.setItem('access_token', response.access_token);
+        localStorage.setItem('refresh_token', response.refresh_token);
         
-        // Extract user info from id_token
-        const userInfo = getUserInfoFromToken(tokens.id_token);
+        // Store user info from backend response
+        const user = response.user;
         
-        if (!userInfo) {
-          throw new Error('Failed to extract user information from token');
+        if (!user) {
+          throw new Error('Failed to get user information from backend');
         }
 
         console.log('👤 User info:', {
-          email: userInfo.email,
-          name: userInfo.name,
-          sub: userInfo.sub,
+          email: user.email,
+          name: user.name,
+          userId: user.userId,
         });
 
         // Store user info
-        localStorage.setItem('user_email', userInfo.email);
-        localStorage.setItem('user_name', userInfo.name);
-        localStorage.setItem('user_id', userInfo.sub);
+        localStorage.setItem('user_email', user.email);
+        localStorage.setItem('user_name', user.name);
+        localStorage.setItem('user_id', user.userId);
         
-        if (userInfo.picture) {
-          localStorage.setItem('user_picture', userInfo.picture);
+        if (user.avatar) {
+          localStorage.setItem('user_picture', user.avatar);
         }
+        
+        localStorage.setItem('user_info', JSON.stringify(user));
 
         // Success
         toast.success('Đăng nhập Google thành công!', { id: 'google-callback' });
