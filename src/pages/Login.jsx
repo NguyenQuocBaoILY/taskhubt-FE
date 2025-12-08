@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useContext';
 import { initGoogleAuth, signInWithGoogle } from '../services/googleAuth';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { checkIsAdmin, getUserInfo } from '../utils/authHelper';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -17,7 +18,6 @@ export default function Login() {
   const { login, googleLogin, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Initialize Google Auth when component mounts
   useEffect(() => {
     const setupGoogleAuth = async () => {
       try {
@@ -33,55 +33,39 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     if (!googleAuthReady) {
-      toast.error('Google Auth chưa được khởi tạo');
+      toast.error('Google Auth chưa sẵn sàng');
       return;
     }
 
     try {
       setIsGoogleLoading(true);
-      toast.loading('Đang khởi tạo Google Sign-in...', { id: 'google-signin' });
+      toast.loading('Đang đăng nhập Google...', { id: 'google-signin' });
       
       const idToken = await signInWithGoogle();
       if (idToken) {
-        toast.loading('Đang xác thực với server...', { id: 'google-signin' });
         const result = await googleLogin(idToken);
         if (result.success) {
-          // Get user info after Google login
-          const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+          const userInfo = getUserInfo();
+          const isAdmin = checkIsAdmin(userInfo);
           
-          // Handle both boolean and string values from JWT + fallback for admin
-          let isAdmin = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
-          
-          // Fallback: Check for admin username/email (temporary until backend fix)
-          if (!isAdmin && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
-            console.log('⚠️ Admin fallback triggered in Google login for:', userInfo.username, userInfo.email);
-            isAdmin = true;
-          }
-          
-          console.log('👤 Google login successful - User info:', userInfo);
-          console.log('🔑 Is Admin:', isAdmin, '(type:', typeof userInfo.isAdmin, 'original:', userInfo.isAdmin, ')');
+          console.log('👤 Google Login - User:', userInfo?.name);
+          console.log('🔑 Is Admin:', isAdmin, '(raw:', userInfo?.isAdmin, ')');
           
           toast.success('Đăng nhập Google thành công!', { id: 'google-signin' });
           
-          // Role-based redirection for Google login
+          // ✅ Role-based redirect
           if (isAdmin) {
+            console.log('➡️ Redirecting to Admin Dashboard');
             navigate('/admin', { replace: true });
           } else {
+            console.log('➡️ Redirecting to User Dashboard');
             navigate('/dashboard', { replace: true });
           }
         }
       }
     } catch (error) {
       console.error('Google login failed:', error);
-      
-      let errorMessage = 'Đăng nhập Google thất bại';
-      if (error.message.includes('timeout')) {
-        errorMessage = 'Đăng nhập Google timeout. Vui lòng thử lại.';
-      } else if (error.message.includes('One Tap not available')) {
-        errorMessage = 'Google One Tap không khả dụng. Đang thử phương thức khác...';
-      }
-      
-      toast.error(errorMessage, { id: 'google-signin' });
+      toast.error('Đăng nhập Google thất bại', { id: 'google-signin' });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -91,42 +75,34 @@ export default function Login() {
     e.preventDefault();
     setErrors({});
 
-    // Basic validation
+    // Validation
     const newErrors = {};
     if (!formData.email) newErrors.email = 'Email là bắt buộc';
     if (!formData.password) newErrors.password = 'Mật khẩu là bắt buộc';
-    if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email không hợp lệ';
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    // Use API login for all users (including admin)
     const result = await login(formData.email, formData.password);
     if (result.success) {
-      // Get user info from localStorage after successful login
-      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const userInfo = getUserInfo();
+      const isAdmin = checkIsAdmin(userInfo);
       
-      // Handle both boolean and string values from JWT + fallback for admin username
-      let isAdmin = userInfo.isAdmin === true || userInfo.isAdmin === 'true' || userInfo.isAdmin === 'True';
-      
-      // Fallback: Check for admin username/email (temporary until backend fix)
-      if (!isAdmin && (userInfo.username === 'admin' || userInfo.email?.includes('admin'))) {
-        console.log('⚠️ Admin fallback triggered in Login for:', userInfo.username, userInfo.email);
-        isAdmin = true;
-      }
-      
-      console.log('👤 Login successful - User info:', userInfo);
-      console.log('🔑 Is Admin:', isAdmin, '(type:', typeof userInfo.isAdmin, 'original:', userInfo.isAdmin, ')');
+      console.log('👤 Login successful - User:', userInfo?.name);
+      console.log('🔑 Is Admin:', isAdmin, '(raw value:', userInfo?.isAdmin, 'type:', typeof userInfo?.isAdmin, ')');
 
-      // Role-based redirection
+      // ✅ Role-based redirect using helper function
       if (isAdmin) {
         console.log('➡️ Redirecting to Admin Dashboard');
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else {
         console.log('➡️ Redirecting to User Projects');
-        navigate('/projects');
+        navigate('/projects', { replace: true });
       }
     }
   };
@@ -136,7 +112,6 @@ export default function Login() {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    // Clear error when user starts typing
     if (errors[e.target.name]) {
       setErrors({
         ...errors,
@@ -147,7 +122,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen relative">
-      {/* Background Image - Full Cover */}
+      {/* Background */}
       <div className="absolute inset-0">
         <img 
           src="/talkhub.jpg" 
@@ -157,7 +132,7 @@ export default function Login() {
         <div className="absolute inset-0 bg-black bg-opacity-40"></div>
       </div>
 
-      {/* Login Form - Centered Modal */}
+      {/* Login Form */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="bg-white rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
@@ -169,7 +144,7 @@ export default function Login() {
                Đăng nhập TaskHub  
               </h2>
               <p className="text-sm text-gray-600">
-                Đã có tài khoản?{' '}
+                Chưa có tài khoản?{' '}
                 <Link
                   to="/signup"
                   className="font-medium text-blue-600 hover:text-blue-500"
@@ -198,7 +173,7 @@ export default function Login() {
                       className={`w-full pl-10 pr-4 py-3 border ${
                         errors.email ? 'border-red-300' : 'border-gray-300'
                       } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900`}
-                      placeholder="Tên đăng nhập hoặc email"
+                      placeholder="Email hoặc tên đăng nhập"
                     />
                   </div>
                   {errors.email && (
@@ -276,14 +251,15 @@ export default function Login() {
                 </button>
               </div>
 
-              {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300" />
                 </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Hoặc</span>
+                </div>
               </div>
 
-              {/* Google Login Button */}
               <div>
                 <button
                   type="button"
