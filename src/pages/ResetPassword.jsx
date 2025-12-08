@@ -5,7 +5,10 @@ import toast from 'react-hot-toast';
 import authService from '../services/authService';
 
 export default function ResetPassword() {
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
+    username: searchParams.get('username') || '',
+    confirmationCode: '',
     password: '',
     confirmPassword: '',
   });
@@ -13,18 +16,7 @@ export default function ResetPassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-
-  const token = searchParams.get('token');
-
-  useEffect(() => {
-    // Validate token exists
-    if (!token) {
-      toast.error('Liên kết không hợp lệ hoặc đã hết hạn');
-      navigate('/login');
-    }
-  }, [token, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,10 +24,18 @@ export default function ResetPassword() {
 
     // Validation
     const newErrors = {};
+    if (!formData.username) {
+      newErrors.username = 'Tên đăng nhập là bắt buộc';
+    }
+    if (!formData.confirmationCode) {
+      newErrors.confirmationCode = 'Mã xác thực là bắt buộc';
+    } else if (formData.confirmationCode.length !== 6) {
+      newErrors.confirmationCode = 'Mã xác thực phải có 6 chữ số';
+    }
     if (!formData.password) {
       newErrors.password = 'Mật khẩu là bắt buộc';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
     }
 
     if (!formData.confirmPassword) {
@@ -51,12 +51,13 @@ export default function ResetPassword() {
 
     try {
       setIsLoading(true);
-      console.log('🔒 Resetting password with token');
+      console.log('🔒 Resetting password with confirmation code');
       
-      await authService.resetPassword({
-        token,
-        newPassword: formData.password
-      });
+      await authService.resetPassword(
+        formData.username,
+        formData.confirmationCode,
+        formData.password
+      );
       
       toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới.');
       navigate('/login');
@@ -65,9 +66,8 @@ export default function ResetPassword() {
       console.error('❌ Reset password error:', error);
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.';
       
-      if (errorMessage.includes('token') || errorMessage.includes('expired')) {
-        toast.error('Liên kết đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.');
-        navigate('/forgot-password');
+      if (errorMessage.includes('code') || errorMessage.includes('expired')) {
+        toast.error('Mã xác thực không hợp lệ hoặc đã hết hạn.');
       } else {
         toast.error(errorMessage);
       }
@@ -115,13 +115,75 @@ export default function ResetPassword() {
                 Đặt lại mật khẩu
               </h2>
               <p className="text-sm text-gray-600">
-                Nhập mật khẩu mới của bạn
+                Nhập mã xác thực từ email và mật khẩu mới
               </p>
             </div>
 
             {/* Form */}
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-4">
+                {/* Username */}
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                    Tên đăng nhập
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      autoComplete="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.username ? 'border-red-300' : 'border-gray-300'
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900`}
+                      placeholder="Tên đăng nhập"
+                    />
+                  </div>
+                  {errors.username && (
+                    <p className="mt-2 text-sm text-red-600">{errors.username}</p>
+                  )}
+                </div>
+
+                {/* Confirmation Code */}
+                <div>
+                  <label htmlFor="confirmationCode" className="block text-sm font-medium text-gray-700 mb-2">
+                    Mã xác thực
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                    </div>
+                    <input
+                      id="confirmationCode"
+                      name="confirmationCode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength="6"
+                      value={formData.confirmationCode}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                        handleChange({ target: { name: 'confirmationCode', value } });
+                      }}
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.confirmationCode ? 'border-red-300' : 'border-gray-300'
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900 text-center text-xl tracking-widest font-semibold`}
+                      placeholder="000000"
+                    />
+                  </div>
+                  {errors.confirmationCode && (
+                    <p className="mt-2 text-sm text-red-600">{errors.confirmationCode}</p>
+                  )}
+                </div>
+
                 {/* New Password */}
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">

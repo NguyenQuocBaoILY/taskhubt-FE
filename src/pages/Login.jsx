@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useContext';
-import { initGoogleAuth, signInWithGoogle } from '../services/googleAuth';
+import { signInWithGoogle } from '../services/googleAuth';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { checkIsAdmin, getUserInfo } from '../utils/authHelper';
@@ -14,59 +14,27 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [googleAuthReady, setGoogleAuthReady] = useState(false);
-  const { login, googleLogin, isLoading } = useAuth();
+  const [passwordStrength, setPasswordStrength] = useState({
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    isLongEnough: false,
+  });
+  const { login, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const setupGoogleAuth = async () => {
-      try {
-        await initGoogleAuth();
-        setGoogleAuthReady(true);
-      } catch (error) {
-        console.error('Failed to initialize Google Auth:', error);
-      }
-    };
-
-    setupGoogleAuth();
-  }, []);
-
   const handleGoogleLogin = async () => {
-    if (!googleAuthReady) {
-      toast.error('Google Auth chưa sẵn sàng');
-      return;
-    }
-
     try {
       setIsGoogleLoading(true);
-      toast.loading('Đang đăng nhập Google...', { id: 'google-signin' });
+      toast.loading('Đang chuyển hướng đến Google...', { id: 'google-signin' });
       
-      const idToken = await signInWithGoogle();
-      if (idToken) {
-        const result = await googleLogin(idToken);
-        if (result.success) {
-          const userInfo = getUserInfo();
-          const isAdmin = checkIsAdmin(userInfo);
-          
-          console.log('👤 Google Login - User:', userInfo?.name);
-          console.log('🔑 Is Admin:', isAdmin, '(raw:', userInfo?.isAdmin, ')');
-          
-          toast.success('Đăng nhập Google thành công!', { id: 'google-signin' });
-          
-          // ✅ Role-based redirect
-          if (isAdmin) {
-            console.log('➡️ Redirecting to Admin Dashboard');
-            navigate('/admin', { replace: true });
-          } else {
-            console.log('➡️ Redirecting to User Dashboard');
-            navigate('/dashboard', { replace: true });
-          }
-        }
-      }
+      // Redirect to Cognito Hosted UI for Google login
+      await signInWithGoogle();
+      
     } catch (error) {
       console.error('Google login failed:', error);
-      toast.error('Đăng nhập Google thất bại', { id: 'google-signin' });
-    } finally {
+      toast.error('Không thể kết nối đến Google', { id: 'google-signin' });
       setIsGoogleLoading(false);
     }
   };
@@ -108,14 +76,27 @@ export default function Login() {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
-    if (errors[e.target.name]) {
+    
+    // Check password strength
+    if (name === 'password') {
+      setPasswordStrength({
+        hasUpperCase: /[A-Z]/.test(value),
+        hasLowerCase: /[a-z]/.test(value),
+        hasNumber: /[0-9]/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-={}[\];':"\\|,.<>/?]/.test(value),
+        isLongEnough: value.length >= 8,
+      });
+    }
+    
+    if (errors[name]) {
       setErrors({
         ...errors,
-        [e.target.name]: '',
+        [name]: '',
       });
     }
   };
@@ -214,6 +195,55 @@ export default function Login() {
                   </div>
                   {errors.password && (
                     <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+                  )}
+                  
+                  {/* Password Strength Indicator */}
+                  {formData.password && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium text-gray-700">Độ mạnh mật khẩu:</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.isLongEnough ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-500'}>
+                            Ít nhất 8 ký tự
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasUpperCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ hoa (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasLowerCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ thường (a-z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasNumber ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ số (0-9)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasSpecialChar ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-500'}>
+                            Có ký tự đặc biệt (!@#$%^&*...)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

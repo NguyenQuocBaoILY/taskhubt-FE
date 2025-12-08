@@ -270,8 +270,8 @@ export default function AdminProjects() {
                       >
                         {project.name}
                       </Link>
-                      <div className="text-sm text-gray-500 truncate" title={project.description}>
-                        {project.description || 'Chưa có mô tả'}
+                      <div className="text-sm text-gray-500" title={project.description}>
+                        {project.description ? (project.description.length > 20 ? project.description.substring(0, 20) + '...' : project.description) : 'Chưa có mô tả'}
                       </div>
                     </div>
                   </div>

@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../hooks/useContext';
 import toast from 'react-hot-toast';
+import { exchangeCodeForTokens, validateOAuthState } from '../services/googleAuth';
 
 const GoogleCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { googleLogin } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const hasProcessed = useRef(false);
 
@@ -21,55 +20,92 @@ const GoogleCallback = () => {
         hasProcessed.current = true;
         setIsProcessing(true);
 
-        console.log('🔄 Processing Google OAuth callback...');
+        console.log('🔄 Processing Cognito OAuth callback...');
 
-        // Get the id_token from URL fragment or query params
-        const fragment = window.location.hash.substring(1);
-        const params = new URLSearchParams(fragment || window.location.search);
-        
-        const idToken = params.get('id_token');
-        const error = params.get('error');
-        const state = params.get('state');
+        // Get authorization code and state from URL query params
+        const code = searchParams.get('code');
+        const state = searchParams.get('state');
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
 
-        console.log('📋 Callback params:', { idToken: !!idToken, error, state });
+        console.log('📋 Callback params:', { 
+          hasCode: !!code, 
+          state, 
+          error,
+          errorDescription 
+        });
 
+        // Handle OAuth errors
         if (error) {
-          console.error('Google OAuth error:', error);
-          toast.error('Đăng nhập Google thất bại: ' + error);
+          console.error('Cognito OAuth error:', error, errorDescription);
+          toast.error(`Đăng nhập Google thất bại: ${errorDescription || error}`);
           navigate('/login', { replace: true });
           return;
         }
 
-        if (!idToken) {
-          console.error('No id_token received');
-          toast.error('Không nhận được token từ Google');
+        // Validate authorization code
+        if (!code) {
+          console.error('No authorization code received');
+          toast.error('Không nhận được mã xác thực từ Cognito');
           navigate('/login', { replace: true });
           return;
         }
 
-        if (state !== 'google_signin') {
+        // Validate state parameter
+        if (!validateOAuthState(state)) {
           console.error('Invalid state parameter');
           toast.error('Phiên đăng nhập không hợp lệ');
           navigate('/login', { replace: true });
           return;
         }
 
-        // Process the Google login ONCE
+        // Exchange authorization code for tokens via backend
         toast.loading('Đang xử lý đăng nhập Google...', { id: 'google-callback' });
         
-        const result = await googleLogin(idToken);
+        const response = await exchangeCodeForTokens(code);
         
-        if (result.success) {
-          toast.success('Đăng nhập Google thành công!', { id: 'google-callback' });
-          
-          // Clean up
-          localStorage.removeItem('google_signin_resolve');
-          
-          // Navigate to dashboard
-          navigate('/dashboard', { replace: true });
-        } else {
-          throw new Error(result.error || 'Google login failed');
+        console.log('🎫 Response received:', {
+          hasAccessToken: !!response.access_token,
+          hasRefreshToken: !!response.refresh_token,
+          hasUser: !!response.user,
+        });
+
+        // Store tokens in localStorage
+        localStorage.setItem('access_token', response.access_token);
+        localStorage.setItem('refresh_token', response.refresh_token);
+        
+        // Store user info from backend response
+        const user = response.user;
+        
+        if (!user) {
+          throw new Error('Failed to get user information from backend');
         }
+
+        console.log('👤 User info:', {
+          email: user.email,
+          name: user.name,
+          userId: user.userId,
+        });
+
+        // Store user info
+        localStorage.setItem('user_email', user.email);
+        localStorage.setItem('user_name', user.name);
+        localStorage.setItem('user_id', user.userId);
+        
+        if (user.avatar) {
+          localStorage.setItem('user_picture', user.avatar);
+        }
+        
+        localStorage.setItem('user_info', JSON.stringify(user));
+
+        // Success
+        toast.success('Đăng nhập Google thành công!', { id: 'google-callback' });
+        
+        // Clean up
+        localStorage.removeItem('oauth_state');
+        
+        // Force page reload to update auth context
+        window.location.href = '/dashboard';
 
       } catch (error) {
         console.error('Google callback error:', error);
@@ -77,9 +113,11 @@ const GoogleCallback = () => {
         let errorMessage = 'Xử lý đăng nhập Google thất bại';
         
         if (error.message?.includes('ERR_CONNECTION_REFUSED')) {
-          errorMessage = 'Backend server không khả dụng. Kiểm tra VITE_API_BASE_URL trong .env';
+          errorMessage = 'Không thể kết nối đến Cognito. Kiểm tra cấu hình VITE_COGNITO_DOMAIN';
         } else if (error.code === 'ERR_NETWORK') {
-          errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra backend đang chạy';
+          errorMessage = 'Không thể kết nối đến Cognito. Vui lòng kiểm tra internet';
+        } else if (error.message?.includes('authorization code')) {
+          errorMessage = 'Mã xác thực không hợp lệ hoặc đã hết hạn';
         } else {
           errorMessage = error.message || 'Xử lý đăng nhập Google thất bại';
         }
