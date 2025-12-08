@@ -281,6 +281,17 @@ export function AuthProvider({ children }) {
       
       const response = await authService.register(userData);
       
+      // Check if Cognito registration needs email confirmation
+      if (response.needsConfirmation) {
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration needs confirmation' });
+        return { 
+          success: true, 
+          needsConfirmation: true,
+          username: response.username,
+          message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.' 
+        };
+      }
+      
       if (response.needsLogin) {
         dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: 'Registration successful' });
         return { 

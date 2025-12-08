@@ -5,7 +5,9 @@ import { useAuth } from './hooks/useContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ConfirmSignup from './pages/ConfirmSignup';
 import ForgotPassword from './pages/ForgotPassword';
+import ConfirmForgotPassword from './pages/ConfirmForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import GoogleCallback from './pages/GoogleCallback';
 import Dashboard from './pages/Dashboard';
@@ -92,10 +94,26 @@ function AppContent() {
           }
         />
         <Route
+          path="/confirm-signup"
+          element={
+            <PublicRoute>
+              <ConfirmSignup />
+            </PublicRoute>
+          }
+        />
+        <Route
           path="/forgot-password"
           element={
             <PublicRoute>
               <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/confirm-forgot-password"
+          element={
+            <PublicRoute>
+              <ConfirmForgotPassword />
             </PublicRoute>
           }
         />

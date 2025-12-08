@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import authService from '../services/authService';
 
 export default function ForgotPassword() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
@@ -17,10 +18,8 @@ export default function ForgotPassword() {
 
     // Basic validation
     const newErrors = {};
-    if (!email) {
-      newErrors.email = 'Email là bắt buộc';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email không hợp lệ';
+    if (!username) {
+      newErrors.username = 'Tên đăng nhập là bắt buộc';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -30,12 +29,19 @@ export default function ForgotPassword() {
 
     try {
       setIsLoading(true);
-      console.log('📧 Sending forgot password email to:', email);
+      console.log('📧 Sending forgot password request for username:', username);
       
-      await authService.forgotPassword(email);
+      const response = await authService.forgotPassword(username);
       
-      setIsEmailSent(true);
-      toast.success('Email xác thực đã được gửi! Vui lòng kiểm tra hộp thư của bạn.');
+      // Get email from response if available
+      if (response.email) {
+        setEmail(response.email);
+      }
+      
+      toast.success('Mã xác thực đã được gửi! Vui lòng kiểm tra email của bạn.');
+      
+      // Redirect to confirm forgot password page with username
+      navigate(`/confirm-forgot-password?username=${encodeURIComponent(username)}`);
       
     } catch (error) {
       console.error('❌ Forgot password error:', error);
@@ -47,6 +53,7 @@ export default function ForgotPassword() {
 
   const handleResendEmail = () => {
     setIsEmailSent(false);
+    setUsername('');
     setEmail('');
   };
 
@@ -77,7 +84,7 @@ export default function ForgotPassword() {
                     Quên mật khẩu?
                   </h2>
                   <p className="text-sm text-gray-600">
-                    Nhập email của bạn để nhận liên kết đặt lại mật khẩu
+                    Nhập tên đăng nhập của bạn để nhận liên kết đặt lại mật khẩu
                   </p>
                 </div>
 
@@ -86,23 +93,25 @@ export default function ForgotPassword() {
                   <div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                       </div>
                       <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        id="username"
+                        name="username"
+                        type="text"
+                        autoComplete="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
                         className={`w-full pl-10 pr-4 py-3 border ${
-                          errors.email ? 'border-red-300' : 'border-gray-300'
+                          errors.username ? 'border-red-300' : 'border-gray-300'
                         } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900`}
-                        placeholder="Nhập email của bạn"
+                        placeholder="Nhập tên đăng nhập của bạn"
                       />
                     </div>
-                    {errors.email && (
-                      <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+                    {errors.username && (
+                      <p className="mt-2 text-sm text-red-600">{errors.username}</p>
                     )}
                   </div>
 
@@ -138,7 +147,8 @@ export default function ForgotPassword() {
                     Email đã được gửi!
                   </h2>
                   <p className="text-sm text-gray-600 mb-6">
-                    Chúng tôi đã gửi liên kết đặt lại mật khẩu đến email <strong>{email}</strong>. 
+                    Chúng tôi đã gửi liên kết đặt lại mật khẩu cho tài khoản <strong>{username}</strong>
+                    {email && <> đến email <strong>{email}</strong></>}. 
                     Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.
                   </p>
                   

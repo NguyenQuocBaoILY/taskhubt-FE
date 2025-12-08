@@ -16,7 +16,7 @@ console.log('🌐 Auth API Base URL:', authAPI.defaults.baseURL);
 export const authService = {
   // Login user - Updated to match backend response format
   login: async (emailOrUsername, password) => {
-    const response = await authAPI.post('/api/Auth/login', {
+    const response = await authAPI.post('/api/Auth/cognito-login', {
       usernameOrEmail: emailOrUsername,
       password: password,
     });
@@ -35,7 +35,7 @@ export const authService = {
 
   // Register user
   register: async (userData) => {
-    const response = await authAPI.post('/api/Auth/register', {
+    const response = await authAPI.post('/api/Auth/cognito-register', {
       username: userData.username || userData.email.split('@')[0],
       email: userData.email,
       password: userData.password,
@@ -48,6 +48,16 @@ export const authService = {
     const responseData = response.data;
     console.log('📥 Register API response:', responseData);
     
+    // Check if Cognito registration needs confirmation
+    if (responseData.needsConfirmation || (responseData.user && !responseData.accessToken && !responseData.refreshToken)) {
+      console.log('📧 Registration successful - needs email confirmation');
+      return {
+        needsConfirmation: true,
+        username: responseData.username || userData.username || userData.email.split('@')[0],
+        message: responseData.message || 'Vui lòng kiểm tra email để xác thực tài khoản'
+      };
+    }
+    
     // API register returns { accessToken: null, refreshToken: null, user, message }
     // We need to auto-login after successful registration
     if (responseData.user && !responseData.accessToken) {
@@ -55,7 +65,7 @@ export const authService = {
       
       // Auto-login with the same credentials
       try {
-        const loginResponse = await authAPI.post('/api/Auth/login', {
+        const loginResponse = await authAPI.post('/api/Auth/cognito-login', {
           usernameOrEmail: userData.email,
           password: userData.password,
         });
@@ -136,10 +146,9 @@ export const authService = {
   },
 
   // Google Login
-  googleLogin: async (idToken, deviceInfo = 'web') => {
-    const response = await authAPI.post('/api/Auth/google-login', {
+  googleLogin: async (idToken) => {
+    const response = await authAPI.post('/api/Auth/google-cognito-login', {
       idToken: idToken,
-      deviceInfo: deviceInfo,
     });
     
     // Backend returns: { accessToken, refreshToken, user, message, isNewUser }
@@ -155,28 +164,46 @@ export const authService = {
   },
 
   // Forgot Password
-  forgotPassword: async (email) => {
-    const response = await authAPI.post('/api/Auth/forgot-password', {
-      email: email,
+  forgotPassword: async (username) => {
+    const response = await authAPI.post('/api/Auth/cognito-forgot-password', {
+      username: username,
     });
     return response.data;
   },
 
-  // Reset Password
-  resetPassword: async (data) => {
+  // Reset Password (Cognito)
+  resetPassword: async (username, confirmationCode, newPassword) => {
     console.log('🔒 Calling reset password API with:', { 
-      token: data.token?.substring(0, 10) + '...', 
-      hasNewPassword: !!data.newPassword,
+      username: username,
+      hasConfirmationCode: !!confirmationCode,
+      hasNewPassword: !!newPassword,
       apiBaseURL: authAPI.defaults.baseURL
     });
     
-    // Use consistent Auth endpoint (capital A) like other endpoints
-    const response = await authAPI.post('/api/Auth/reset-password', {
-      token: data.token,
-      newPassword: data.newPassword,
+    const response = await authAPI.post('/api/Auth/cognito-confirm-forgot-password', {
+      username: username,
+      confirmationCode: confirmationCode,
+      newPassword: newPassword,
     });
     
     console.log('✅ Reset password API success:', response.data);
+    return response.data;
+  },
+
+  // Confirm Signup (Cognito)
+  confirmSignup: async (username, confirmationCode) => {
+    const response = await authAPI.post('/api/Auth/cognito-confirm', {
+      username: username,
+      confirmationCode: confirmationCode,
+    });
+    return response.data;
+  },
+
+  // Resend Confirmation Code (Cognito)
+  resendConfirmationCode: async (username) => {
+    const response = await authAPI.post('/api/Auth/cognito-resend-confirmation', {
+      username: username,
+    });
     return response.data;
   },
 };

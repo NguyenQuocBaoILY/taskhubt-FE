@@ -15,6 +15,13 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleAuthReady, setGoogleAuthReady] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    isLongEnough: false,
+  });
   const { login, googleLogin, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -108,14 +115,27 @@ export default function Login() {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
-    if (errors[e.target.name]) {
+    
+    // Check password strength
+    if (name === 'password') {
+      setPasswordStrength({
+        hasUpperCase: /[A-Z]/.test(value),
+        hasLowerCase: /[a-z]/.test(value),
+        hasNumber: /[0-9]/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-={}[\];':"\\|,.<>/?]/.test(value),
+        isLongEnough: value.length >= 8,
+      });
+    }
+    
+    if (errors[name]) {
       setErrors({
         ...errors,
-        [e.target.name]: '',
+        [name]: '',
       });
     }
   };
@@ -214,6 +234,55 @@ export default function Login() {
                   </div>
                   {errors.password && (
                     <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+                  )}
+                  
+                  {/* Password Strength Indicator */}
+                  {formData.password && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium text-gray-700">Độ mạnh mật khẩu:</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.isLongEnough ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-500'}>
+                            Ít nhất 8 ký tự
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasUpperCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ hoa (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasLowerCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ thường (a-z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasNumber ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ số (0-9)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasSpecialChar ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-500'}>
+                            Có ký tự đặc biệt (!@#$%^&*...)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

@@ -7,12 +7,20 @@ export default function Signup() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [passwordStrength, setPasswordStrength] = useState({
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    isLongEnough: false,
+  });
   const { signup, isLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -24,6 +32,7 @@ export default function Signup() {
     const newErrors = {};
     if (!formData.name) newErrors.name = 'Tên là bắt buộc';
     if (!formData.email) newErrors.email = 'Email là bắt buộc';
+    if (!formData.phoneNumber) newErrors.phoneNumber = 'Số điện thoại là bắt buộc';
     if (!formData.password) newErrors.password = 'Mật khẩu là bắt buộc';
     if (!formData.confirmPassword) newErrors.confirmPassword = 'Xác nhận mật khẩu là bắt buộc';
     
@@ -31,8 +40,21 @@ export default function Signup() {
       newErrors.email = 'Email không hợp lệ';
     }
     
-    if (formData.password.length < 6) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    if (formData.phoneNumber && !/^[0-9]{10,11}$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Số điện thoại phải có 10-11 chữ số';
+    }
+    
+    // Password strength validation
+    if (formData.password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+    } else if (!passwordStrength.hasUpperCase) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 1 chữ hoa';
+    } else if (!passwordStrength.hasLowerCase) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 1 chữ thường';
+    } else if (!passwordStrength.hasNumber) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 1 chữ số';
+    } else if (!passwordStrength.hasSpecialChar) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt';
     }
     
     if (formData.password !== formData.confirmPassword) {
@@ -47,13 +69,17 @@ export default function Signup() {
     const result = await signup({
       name: formData.name,
       email: formData.email,
+      phoneNumber: formData.phoneNumber,
       password: formData.password,
-      // role bỏ khỏi form, nếu backend cần có thể set mặc định ở đây, ví dụ:
-      // role: 'member',
     });
 
     if (result.success) {
-      if (result.needsLogin) {
+      if (result.needsConfirmation) {
+        // Cognito registration - needs email confirmation
+        const username = result.username || formData.email.split('@')[0];
+        alert(result.message || 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
+        navigate(`/confirm-signup?username=${encodeURIComponent(username)}&email=${encodeURIComponent(formData.email)}`);
+      } else if (result.needsLogin) {
         // Registration successful but needs login
         alert(result.message || 'Đăng ký thành công! Vui lòng đăng nhập.');
         navigate('/login');
@@ -65,15 +91,28 @@ export default function Signup() {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+    
+    // Check password strength
+    if (name === 'password') {
+      setPasswordStrength({
+        hasUpperCase: /[A-Z]/.test(value),
+        hasLowerCase: /[a-z]/.test(value),
+        hasNumber: /[0-9]/.test(value),
+        hasSpecialChar: /[!@#$%^&*()_+\-={}[\];':"\\|,.<>/?]/.test(value),
+        isLongEnough: value.length >= 8,
+      });
+    }
+    
     // Clear error when user starts typing
-    if (errors[e.target.name]) {
+    if (errors[name]) {
       setErrors({
         ...errors,
-        [e.target.name]: '',
+        [name]: '',
       });
     }
   };
@@ -168,6 +207,31 @@ export default function Signup() {
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      type="tel"
+                      autoComplete="tel"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                      className={`w-full pl-10 pr-4 py-3 border ${
+                        errors.phoneNumber ? 'border-red-300' : 'border-gray-300'
+                      } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900`}
+                      placeholder="Số điện thoại"
+                    />
+                  </div>
+                  {errors.phoneNumber && (
+                    <p className="mt-2 text-sm text-red-600">{errors.phoneNumber}</p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                     </div>
@@ -197,6 +261,55 @@ export default function Signup() {
                   </div>
                   {errors.password && (
                     <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+                  )}
+                  
+                  {/* Password Strength Indicator */}
+                  {formData.password && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium text-gray-700">Độ mạnh mật khẩu:</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.isLongEnough ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.isLongEnough ? 'text-green-600' : 'text-gray-500'}>
+                            Ít nhất 8 ký tự
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasUpperCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasUpperCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ hoa (A-Z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasLowerCase ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasLowerCase ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ thường (a-z)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasNumber ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasNumber ? 'text-green-600' : 'text-gray-500'}>
+                            Có chữ số (0-9)
+                          </span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                          <span className={`mr-2 ${passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-400'}`}>
+                            {passwordStrength.hasSpecialChar ? '✓' : '○'}
+                          </span>
+                          <span className={passwordStrength.hasSpecialChar ? 'text-green-600' : 'text-gray-500'}>
+                            Có ký tự đặc biệt (!@#$%^&*...)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
