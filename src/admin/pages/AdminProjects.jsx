@@ -259,7 +259,7 @@ export default function AdminProjects() {
                         <FolderIcon className="h-5 w-5 text-red-600" />
                       </div>
                     </div>
-                    <div className="ml-4 max-w-xs">
+                    <div className="ml-4">
                       <Link 
                         to={`/admin/projects/${project.id}`}
                         className="text-sm font-medium text-gray-900 hover:text-red-600"
@@ -270,8 +270,8 @@ export default function AdminProjects() {
                       >
                         {project.name}
                       </Link>
-                      <div className="text-sm text-gray-500 truncate" title={project.description}>
-                        {project.description || 'Chưa có mô tả'}
+                      <div className="text-sm text-gray-500" title={project.description}>
+                        {project.description ? (project.description.length > 20 ? project.description.substring(0, 20) + '...' : project.description) : 'Chưa có mô tả'}
                       </div>
                     </div>
                   </div>
