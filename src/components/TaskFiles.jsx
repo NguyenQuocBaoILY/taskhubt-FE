@@ -46,6 +46,13 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
     const file = event.target.files[0];
     if (!file) return;
 
+    console.log('📤 Attempting to upload file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    });
+
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       alert('File quá lớn. Kích thước tối đa cho phép là 10MB.');
@@ -56,7 +63,9 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       setUploading(true);
       setError('');
       
+      console.log('📤 Calling API with params:', { taskId, projectId, userId });
       const response = await taskAPI.uploadTaskFile(taskId, projectId, userId, file);
+      console.log('📤 Upload response:', response);
       
       // Add new file to list
       setFiles(prev => [...prev, response.data]);
@@ -77,8 +86,19 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       
       console.log('File uploaded successfully:', response.data);
     } catch (error) {
-      console.error('Error uploading file:', error);
-      setError('Không thể upload file. Vui lòng thử lại.');
+      console.error('❌ Error uploading file:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      
+      let errorMessage = 'Không thể upload file. Vui lòng thử lại.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      setError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -90,8 +110,23 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       
       const response = await taskAPI.downloadTaskFile(taskId, fileId, projectId, userId);
       
-      // Tạo blob URL và trigger download
-      const blob = new Blob([response.data]);
+      // Lấy content-type từ file info (không dùng response headers vì có thể bị mã hóa)
+      const file = files.find(f => f.fileId === fileId);
+      const contentType = file?.contentType || 'application/octet-stream';
+      
+      console.log('📄 File info:', { fileName, contentType, dataType: typeof response.data });
+      
+      // Xử lý data từ S3 (có thể là ArrayBuffer hoặc Blob)
+      let blob;
+      if (response.data instanceof ArrayBuffer) {
+        blob = new Blob([response.data], { type: contentType });
+      } else if (response.data instanceof Blob) {
+        blob = response.data;
+      } else {
+        // Nếu là string hoặc dạng khác, convert thành Uint8Array
+        const uint8Array = new Uint8Array(response.data);
+        blob = new Blob([uint8Array], { type: contentType });
+      }
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
