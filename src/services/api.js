@@ -678,10 +678,7 @@ export const taskAPI = {
     
     return api.get(`/api/task/${taskId}/files/${fileId}/download`, { 
       params,
-      responseType: 'arraybuffer', // Sử dụng arraybuffer thay vì blob để xử lý file mã hóa
-      headers: {
-        'Accept': '*/*'
-      }
+
     });
   },
 };
