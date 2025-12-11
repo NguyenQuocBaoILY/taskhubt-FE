@@ -84,6 +84,30 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
     }
   };
 
+  const handleDownloadFile = async (fileId, fileName) => {
+    try {
+      console.log('📥 Starting download:', { taskId, fileId, projectId, userId, fileName });
+      
+      const response = await taskAPI.downloadTaskFile(taskId, fileId, projectId, userId);
+      
+      // Tạo blob URL và trigger download
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ File downloaded successfully:', fileName);
+    } catch (error) {
+      console.error('❌ Error downloading file:', error);
+      setError('Không thể tải file. Vui lòng thử lại.');
+    }
+  };
+
   const handleDeleteFile = async (fileId, fileName) => {
     if (!confirm(`Bạn có chắc muốn xóa file "${fileName}"?`)) {
       return;
@@ -228,24 +252,38 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
                   </div>
                 </div>
                 
-                {!isReadOnly && (
+                <div className="flex items-center space-x-2">
+                  {/* Download button */}
                   <button
-                    onClick={() => handleDeleteFile(file.fileId, file.fileName)}
-                    disabled={deletingFileId === file.fileId}
-                    className={`ml-3 p-1 transition-colors ${
-                      deletingFileId === file.fileId
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-red-400 hover:text-red-600'
-                    }`}
-                    title="Xóa file"
+                    onClick={() => handleDownloadFile(file.fileId, file.fileName)}
+                    className="p-1 text-blue-400 hover:text-blue-600 transition-colors"
+                    title="Tải file"
                   >
-                    {deletingFileId === file.fileId ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
-                    ) : (
-                      <TrashIcon className="h-4 w-4" />
-                    )}
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </button>
-                )}
+                  
+                  {/* Delete button */}
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => handleDeleteFile(file.fileId, file.fileName)}
+                      disabled={deletingFileId === file.fileId}
+                      className={`p-1 transition-colors ${
+                        deletingFileId === file.fileId
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-red-400 hover:text-red-600'
+                      }`}
+                      title="Xóa file"
+                    >
+                      {deletingFileId === file.fileId ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400"></div>
+                      ) : (
+                        <TrashIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}

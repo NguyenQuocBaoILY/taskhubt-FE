@@ -667,6 +667,20 @@ export const taskAPI = {
     console.log('📤 Delete file params:', params);
     return api.delete(`/api/task/${taskId}/files/${fileId}`, { params });
   },
+
+  downloadTaskFile: (taskId, fileId, projectId, userId) => {
+    console.log('📥 Downloading task file:', { taskId, fileId, projectId, userId });
+    
+    const params = {
+      projectId: projectId,
+      userId: userId
+    };
+    
+    return api.get(`/api/task/${taskId}/files/${fileId}/download`, { 
+      params,
+      responseType: 'blob' // Quan trọng để download file
+    });
+  },
 };
 
 // Dashboard API for getting summary statistics
