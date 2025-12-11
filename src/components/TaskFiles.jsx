@@ -120,8 +120,14 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       
       console.log('🔗 Pre-signed URL received:', downloadUrl.substring(0, 100) + '...');
       
-      // Test: Mở URL trong tab mới để kiểm tra
-      window.open(downloadUrl, '_blank');
+      // Tạo link download thực sự
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       console.log('✅ File download initiated successfully:', fileName);
     } catch (error) {
