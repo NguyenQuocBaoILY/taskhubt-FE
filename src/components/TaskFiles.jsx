@@ -109,34 +109,21 @@ export default function TaskFiles({ taskId, projectId, userId, isReadOnly = fals
       console.log('📥 Starting download:', { taskId, fileId, projectId, userId, fileName });
       
       const response = await taskAPI.downloadTaskFile(taskId, fileId, projectId, userId);
+      console.log('📄 API Response:', response.data);
       
-      // Lấy content-type từ file info (không dùng response headers vì có thể bị mã hóa)
-      const file = files.find(f => f.fileId === fileId);
-      const contentType = file?.contentType || 'application/octet-stream';
+      // Backend trả về pre-signed URL
+      const downloadUrl = response.data.downloadUrl;
       
-      console.log('📄 File info:', { fileName, contentType, dataType: typeof response.data });
-      
-      // Xử lý data từ S3 (có thể là ArrayBuffer hoặc Blob)
-      let blob;
-      if (response.data instanceof ArrayBuffer) {
-        blob = new Blob([response.data], { type: contentType });
-      } else if (response.data instanceof Blob) {
-        blob = response.data;
-      } else {
-        // Nếu là string hoặc dạng khác, convert thành Uint8Array
-        const uint8Array = new Uint8Array(response.data);
-        blob = new Blob([uint8Array], { type: contentType });
+      if (!downloadUrl) {
+        throw new Error('No download URL received');
       }
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
       
-      console.log('✅ File downloaded successfully:', fileName);
+      console.log('🔗 Pre-signed URL received:', downloadUrl.substring(0, 100) + '...');
+      
+      // Test: Mở URL trong tab mới để kiểm tra
+      window.open(downloadUrl, '_blank');
+      
+      console.log('✅ File download initiated successfully:', fileName);
     } catch (error) {
       console.error('❌ Error downloading file:', error);
       setError('Không thể tải file. Vui lòng thử lại.');
