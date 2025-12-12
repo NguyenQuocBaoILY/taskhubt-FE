@@ -1,483 +1,496 @@
 # TaskHub Frontend
 
-Dự án này là giao diện web của ứng dụng quản lý công việc **TaskHub**, xây bằng **React + Vite + Tailwind CSS v3**.
+Dự án web quản lý công việc và dự án **TaskHub**, được xây dựng bằng **React 19 + Vite + Tailwind CSS**.
 
-README này viết cho người mới, chỉ cần làm đúng từng bước là chạy được.
-## 1. Cần chuẩn bị trước
-
-Trước khi bắt đầu, hãy cài những phần mềm sau (chỉ cần cài 1 lần trên máy):
-
-1. **Node.js LTS (khuyến nghị 18.x hoặc 20.x)**  
-    - Tải tại: https://nodejs.org/en/download  
-    - Cài xong, mở **PowerShell** và kiểm tra:
-
-    ```powershell
-    node -v
-    npm -v
-    ```
-
-    Nếu hiện ra số version (ví dụ `v20.10.0`) là được.
-
-2. **.NET SDK 8.0** (dùng cho backend)  
-    - Tải tại: https://dotnet.microsoft.com/download/dotnet/8.0  
-    - Sau khi cài, kiểm tra:
-
-    ```powershell
-    dotnet --version
-    ```
-
-    Nếu thấy số version là OK.
-
-3. **Git** (không bắt buộc nhưng nên có):  
-    - Tải tại: https://git-scm.com/downloads
+README này viết dành cho người mới bắt đầu, hướng dẫn từng bước để chạy được dự án.
 
 ---
 
-## 2. Cấu trúc dự án
+## 📋 Mục lục
 
-Trong thư mục chính `projectAWS` bạn có:
-
-- `taskhub_frontend/` – mã nguồn giao diện React/Vite (thư mục bạn đang mở).  
-- `taskhub_backend-master/` – mã nguồn API backend ASP.NET Core.
-
-Khi chạy dự án đầy đủ, ta sẽ:
-- Chạy **backend** ở cổng `http://localhost:15155`.
-- Chạy **frontend** ở cổng `http://localhost:5173`.
-
----
-
-## 3. Thiết lập và chạy FRONTEND
-
-Thực hiện các bước sau trong PowerShell.
-
-### 3.1. Cài thư viện (chỉ lần đầu)
-
-```powershell
-cd D:\projectAWS\taskhub_frontend
-npm install
-```
-
-Lệnh này có thể chạy 1–5 phút tùy máy. Chỉ cần làm lại nếu xóa thư mục `node_modules`.
-
-### 3.2. Kiểm tra file cấu hình `.env`
-
-Trong thư mục `taskhub_frontend`, tạo (hoặc mở) file `.env` và đảm bảo có dòng:
-
-```env
-VITE_API_BASE_URL=http://localhost:15155
-```
-
-Dòng này nói cho frontend biết phải gọi API ở đâu.
-
-### 3.3. Chạy dev server
-
-```powershell
-cd D:\projectAWS\taskhub_frontend
-npm run dev
-```
-
-- Sau khi chạy thành công, bạn sẽ thấy dòng tương tự:
-   - `Local:   http://localhost:5173/`
-- Mở trình duyệt (Chrome/Edge) và truy cập: `http://localhost:5173`.
-
-Nếu có lỗi đỏ trong terminal, copy nội dung lỗi đó để hỏi lại.
+1. [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
+2. [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+3. [Cài đặt và chạy dự án](#-cài-đặt-và-chạy-dự-án)
+4. [Cấu hình môi trường](#-cấu-hình-môi-trường)
+5. [Cấu trúc dự án](#-cấu-trúc-dự-án)
+6. [Các lệnh thường dùng](#-các-lệnh-thường-dùng)
+7. [Xử lý lỗi thường gặp](#-xử-lý-lỗi-thường-gặp)
 
 ---
-
-## 4. Thiết lập và chạy BACKEND
-
-Frontend gọi API từ backend, vì vậy muốn dữ liệu thật bạn cần chạy backend.
-
-### 4.1. Cài thư viện backend (NuGet)
-
-Thông thường chỉ cần lệnh `dotnet restore` một lần:
-
-```powershell
-cd D:\projectAWS\taskhub_backend-master
-dotnet restore
-```
-
-### 4.2. Chạy Web API
-
-Trong project backend, thư mục Web API chính là:
-
-```text
-D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost
-```
-
-Để chạy API:
-
-```powershell
-cd "D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost"
-dotnet run
-```
-
-- Nếu chạy thành công, bạn sẽ thấy ứng dụng lắng nghe ở địa chỉ kiểu:
-   - `http://localhost:15155`
-- Đừng tắt cửa sổ này khi đang dùng frontend.
-
-Nếu `dotnet run` báo lỗi (Exit Code 1), hãy đọc dòng lỗi cuối cùng và gửi lại để xử lý.
-
----
-
-## 5. Thứ tự chạy đầy đủ
-
-1. **Mở một cửa sổ PowerShell** để chạy backend:
-
-    ```powershell
-    cd "D:\projectAWS\taskhub_backend-master\Web API\Web API.AppHost"
-    dotnet run
-    ```
-
-2. **Mở một cửa sổ PowerShell khác** để chạy frontend:
-
-    ```powershell
-    cd D:\projectAWS\taskhub_frontend
-    npm run dev
-    ```
-
-3. Mở trình duyệt tại `http://localhost:5173`.
-
-Chỉ cần cả hai cửa sổ vẫn mở, hệ thống sẽ hoạt động.
-
----
-
-## 6. Đăng nhập / Đăng ký hiện tại hoạt động thế nào?
-
-Quan trọng: ở phiên bản hiện tại **chưa kết nối API thật cho user**.
-
-- Khi bấm **Đăng ký tài khoản** hoặc **Đăng nhập**, app đang dùng **dữ liệu giả (mock)**:
-   - Thông tin user và token **lưu trong `localStorage` của trình duyệt**, không lưu vào database.
-   - Vì vậy bạn có thể đăng ký / đăng nhập được **dù backend chưa bật**.
-- Phần quản lý **Task** thì đang kết nối thật với API `/api/Task` của backend.
-
-Sau này nếu bạn thêm API Auth thật (Register/Login), chỉ cần sửa `AuthContext` và `services/api.js` để dùng API thay vì mock.
-
----
-
-## 7. Lỗi thường gặp và cách xử lý nhanh
-
-### 7.1. Lỗi `npm run dev` báo không tìm thấy `node` hoặc `npm`
-
-- Nguyên nhân: chưa cài Node.js hoặc chưa mở lại PowerShell sau khi cài.  
-- Cách xử lý: cài Node.js từ https://nodejs.org, rồi **đóng và mở lại** PowerShell, thử lại:
-
-   ```powershell
-   node -v
-   npm -v
-   ```
-
-### 7.2. Lỗi `dotnet` không được nhận diện
-
-- Nguyên nhân: chưa cài .NET SDK.  
-- Cách xử lý: cài .NET 8 từ https://dotnet.microsoft.com/download/dotnet/8.0 rồi mở lại PowerShell.
-
-### 7.3. Frontend chạy được nhưng không load được Task
-
-- Kiểm tra backend đã chạy chưa (`dotnet run`).
-- Đảm bảo file `.env` trong `taskhub_frontend` có đúng dòng:
-
-   ```env
-   VITE_API_BASE_URL=http://localhost:15155
-   ```
-
-- F5 lại trang `http://localhost:5173/tasks`.
-
-### 7.4. Lỗi CORS hoặc HTTPS khi gọi API
-
-Phiên bản này được cấu hình để chạy **HTTP** cho dev:
-- Backend: `http://localhost:15155`
-- Frontend: `http://localhost:5173`
-
-Nếu bạn thấy URL dạng `https://localhost:17057`, hãy kiểm tra:
-- Dùng đúng đường dẫn `http://localhost:15155` trong `.env`.
-- Đảm bảo trong `Program.cs` của backend đã tắt `UseHttpsRedirection` khi dev.
-
----
-
-## 8. Nơi chỉnh màu sắc, giao diện
-
-- **Tailwind config**: `taskhub_frontend/tailwind.config.js` – cấu hình màu `primary`, `gray`, font chữ.
-- **CSS gốc**: `taskhub_frontend/src/index.css` – import Tailwind và reset cơ bản.
-- **Layout chung** (navbar + khung nội dung): `taskhub_frontend/src/components/Layout.jsx`.
-- **Trang chính**:
-   - Đăng nhập: `src/pages/Login.jsx`
-   - Đăng ký: `src/pages/Signup.jsx`
-   - Dashboard: `src/pages/Dashboard.jsx`
-   - Task list: `src/pages/TaskPage.jsx`
-
----
-
-## 9. Cần trợ giúp thêm
-
-Nếu bạn làm đúng các bước mà vẫn không chạy được:
-- Chụp màn hình terminal (lỗi đỏ) và màn hình browser.
-- Hoặc copy nguyên thông báo lỗi và đường dẫn thư mục hiện tại.
-
-Chỉ cần hai thông tin đó là có thể hỗ trợ debug tiếp rất nhanh.
-# TaskHub Frontend
-
-TaskHub là một nền tảng quản lý nhiệm vụ và tiến độ theo mô hình DevSecOps trên AWS, được phát triển với Vite + React + JavaScript.
-
-## 🚀 Tính năng chính
-
-- **Dashboard**: Trang tổng quan với thống kê dự án, task và hoạt động gần đây
-- **Authentication**: Đăng nhập/đăng ký với validation và tích hợp sẵn cho AWS Cognito
-- **Project Management**: Quản lý dự án với CRUD operations
-- **Task Management**: Kanban board với drag & drop cho quản lý task
-- **Role-based Access Control**: Phân quyền theo vai trò (Admin, Manager, Member)
-- **Responsive Design**: Giao diện responsive với Tailwind CSS
 
 ## 🛠 Công nghệ sử dụng
 
-- **Frontend Framework**: React 19 với Vite
-- **Routing**: React Router DOM
-- **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **HTTP Client**: Axios với interceptors
-- **Form Handling**: React Hook Form
-- **Icons**: Heroicons
-- **Drag & Drop**: @dnd-kit
-- **Date Handling**: date-fns
-- **Charts**: Recharts
-- **Notifications**: React Hot Toast
+Dự án này sử dụng các công nghệ và thư viện sau:
+
+### Core Technologies
+- **React 19** - Thư viện JavaScript để xây dựng giao diện người dùng
+- **Vite** - Build tool và dev server cực nhanh
+- **JavaScript (ES6+)** - Ngôn ngữ lập trình chính
+
+### Styling & UI
+- **Tailwind CSS 3.4** - Framework CSS utility-first
+- **@tailwindcss/forms** - Plugin form styling cho Tailwind
+- **Heroicons** - Bộ icon SVG từ Tailwind Labs
+- **Lucide React** - Thư viện icon đẹp và nhẹ
+
+### State Management & Routing
+- **React Router DOM 7** - Quản lý routing và navigation
+- **React Context API** - Quản lý state toàn cục
+
+### Data Fetching & Forms
+- **Axios** - HTTP client để gọi API
+- **React Hook Form** - Quản lý form với validation
+- **React Hot Toast** - Thông báo đẹp và dễ dùng
+
+### Additional Features
+- **@dnd-kit** - Drag and drop cho Kanban board
+- **date-fns** - Xử lý ngày tháng
+- **Recharts** - Vẽ biểu đồ thống kê
+- **clsx & tailwind-merge** - Utilities để merge CSS classes
+
+### Backend Integration
+- **AWS Cognito** - Xác thực và quản lý người dùng
+- **Google OAuth** - Đăng nhập bằng Google
+- **AWS API Gateway** - Backend API đã deploy trên AWS
+- **ASP.NET Core** - Backend framework (deploy trên AWS Lambda)
+
+---
+
+## 💻 Yêu cầu hệ thống
+
+Trước khi bắt đầu, bạn cần cài đặt các phần mềm sau:
+
+### 1. Node.js (Bắt buộc)
+- **Phiên bản**: Node.js 18.x hoặc 20.x (khuyến nghị LTS)
+- **Tải về**: https://nodejs.org/en/download
+- **Kiểm tra sau khi cài**:
+  ```powershell
+  node -v
+  # Nên thấy: v20.x.x hoặc v18.x.x
+  
+  npm -v
+  # Nên thấy: 9.x.x hoặc 10.x.x
+  ```
+
+### 2. Git (Tùy chọn nhưng nên có)
+- **Tải về**: https://git-scm.com/downloads
+
+### 3. Code Editor
+- **Visual Studio Code** (khuyến nghị): https://code.visualstudio.com/
+- Hoặc bất kỳ editor nào bạn thích
+
+---
+
+## 🚀 Cài đặt và chạy dự án
+
+### Bước 1: Mở PowerShell
+
+Nhấn `Windows + X` → chọn **Windows PowerShell** hoặc **Terminal**
+
+### Bước 2: Di chuyển đến thư mục dự án
+
+```powershell
+cd D:\projectAWS\taskhub_frontend
+```
+
+### Bước 3: Cài đặt các thư viện (packages)
+
+```powershell
+npm install
+```
+
+**Lưu ý**: 
+- Lệnh này sẽ chạy 1-5 phút tùy vào tốc độ mạng và máy tính
+- Chỉ cần chạy 1 lần đầu tiên hoặc khi có thay đổi `package.json`
+- Sau khi chạy xong sẽ có thư mục `node_modules` chứa tất cả thư viện
+
+### Bước 4: Kiểm tra file `.env`
+
+Dự án có 2 file environment:
+- `.env` - Cho môi trường development (local)
+- `.env.production` - Cho môi trường production (AWS)
+
+**File `.env` (Development)**:
+```env
+# API Backend URL (Local)
+VITE_API_BASE_URL=http://localhost:15155
+
+# Google OAuth
+VITE_GOOGLE_CLIENT_ID=1097379280226-ede5i0vtmkj3cb94se0gp7jm4t8ibujk.apps.googleusercontent.com
+VITE_GOOGLE_REDIRECT_URI=http://localhost:5173
+
+# AWS Cognito
+VITE_COGNITO_REGION=ap-southeast-1
+VITE_COGNITO_USER_POOL_ID=ap-southeast-1_46xJLc8VB
+VITE_COGNITO_CLIENT_ID=4cjjbi67t2nldlm7od9q24nf9u
+VITE_COGNITO_DOMAIN=https://ap-southeast-146xjlc8vb.auth.ap-southeast-1.amazoncognito.com
+VITE_COGNITO_OAUTH_REDIRECT_URI=http://localhost:5173/auth/google/callback
+
+# App Configuration
+VITE_APP_NAME=TaskHub
+VITE_APP_VERSION=1.0.0
+```
+
+**File `.env.production` (Production)**:
+```env
+# API Backend URL (AWS API Gateway)
+VITE_API_BASE_URL=https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod
+
+# Google OAuth
+VITE_GOOGLE_CLIENT_ID=1097379280226-ede5i0vtmkj3cb94se0gp7jm4t8ibujk.apps.googleusercontent.com
+
+# AWS Cognito
+VITE_COGNITO_REGION=ap-southeast-1
+VITE_COGNITO_USER_POOL_ID=ap-southeast-1_46xJLc8VB
+VITE_COGNITO_CLIENT_ID=4cjjbi67t2nldlm7od9q24nf9u
+VITE_COGNITO_DOMAIN=https://ap-southeast-146xjlc8vb.auth.ap-southeast-1.amazoncognito.com
+VITE_COGNITO_OAUTH_REDIRECT_URI=https://d3vdjh6xgexs6v.cloudfront.net/auth/google/callback
+
+# App Configuration
+VITE_APP_NAME=TaskHub
+VITE_APP_VERSION=1.0.0
+```
+
+**Quan trọng**: 
+- Khi chạy `npm run dev` sẽ dùng file `.env`
+- Khi chạy `npm run build` sẽ dùng file `.env.production`
+
+### Bước 5: Chạy development server
+
+```powershell
+npm run dev
+```
+
+**Kết quả mong đợi**:
+```
+  VITE v7.2.2  ready in 500 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+```
+
+### Bước 6: Mở trình duyệt
+
+Truy cập: **http://localhost:5173**
+
+Bạn sẽ thấy giao diện trang chủ của TaskHub.
+
+---
+
+## 🔧 Cấu hình môi trường
+
+### File `.env` chi tiết
+
+| Biến môi trường | Mục đích | Development | Production |
+|----------------|----------|-------------|------------|
+| `VITE_API_BASE_URL` | URL của backend API | `http://localhost:15155` | `https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod` |
+| `VITE_GOOGLE_CLIENT_ID` | Client ID cho Google OAuth | Giống nhau | Giống nhau |
+| `VITE_COGNITO_REGION` | AWS Cognito Region | `ap-southeast-1` | `ap-southeast-1` |
+| `VITE_COGNITO_USER_POOL_ID` | ID của Cognito User Pool | `ap-southeast-1_46xJLc8VB` | Giống nhau |
+| `VITE_COGNITO_CLIENT_ID` | Client ID của Cognito App | `4cjjbi67t2nldlm7od9q24nf9u` | Giống nhau |
+| `VITE_COGNITO_DOMAIN` | Domain của Cognito | AWS Cognito URL | Giống nhau |
+| `VITE_COGNITO_OAUTH_REDIRECT_URI` | Redirect URL sau OAuth | `http://localhost:5173/...` | `https://d3vdjh6xgexs6v.cloudfront.net/...` |
+| `VITE_APP_NAME` | Tên ứng dụng | `TaskHub` | `TaskHub` |
+| `VITE_APP_VERSION` | Phiên bản ứng dụng | `1.0.0` | `1.0.0` |
+
+**Lưu ý về Vite environment variables**:
+- Tất cả biến môi trường phải bắt đầu với `VITE_`
+- Các biến này sẽ được nhúng vào code khi build
+- Không lưu thông tin nhạy cảm (secret keys) trong frontend
+- Backend API đang deploy trên AWS API Gateway, không cần chạy local backend
+
+---
 
 ## 📁 Cấu trúc dự án
 
 ```
-src/
-├── components/         # Shared components
-│   ├── Layout.jsx     # Layout chính
-│   └── Navbar.jsx     # Navigation bar
-├── pages/             # Page components
-│   ├── Login.jsx      # Trang đăng nhập
-│   ├── Signup.jsx     # Trang đăng ký
-│   └── Dashboard.jsx  # Trang dashboard
-├── context/           # React contexts
-│   ├── AuthContext.jsx   # Authentication state
-│   └── AppContext.jsx    # Application state
-├── services/          # API services
-│   └── api.js         # API configuration và methods
-├── hooks/            # Custom hooks
-│   └── useContext.js  # Context hooks
-└── utils/            # Utility functions
+taskhub_frontend/
+├── public/                 # Static assets
+├── src/
+│   ├── admin/             # Trang quản trị
+│   │   ├── components/    # Components dành cho admin
+│   │   └── pages/         # Pages dành cho admin
+│   ├── assets/            # Hình ảnh, fonts, icons
+│   ├── components/        # Shared components
+│   │   ├── Layout.jsx     # Layout wrapper
+│   │   ├── Navbar.jsx     # Navigation bar
+│   │   ├── TaskCard.jsx   # Card hiển thị task
+│   │   ├── TaskModal.jsx  # Modal tạo/sửa task
+│   │   └── ...
+│   ├── config/            # Cấu hình
+│   │   └── google.js      # Google OAuth config
+│   ├── context/           # React Context
+│   │   ├── AuthContext.jsx    # Context quản lý auth
+│   │   └── AppContext.jsx     # Context quản lý app state
+│   ├── hooks/             # Custom React hooks
+│   │   └── useContext.js  # Hook để dùng contexts
+│   ├── pages/             # Các trang chính
+│   │   ├── Login.jsx      # Trang đăng nhập
+│   │   ├── Signup.jsx     # Trang đăng ký
+│   │   ├── Dashboard.jsx  # Trang dashboard
+│   │   ├── ProjectList.jsx    # Danh sách dự án
+│   │   ├── ProjectDetail.jsx  # Chi tiết dự án
+│   │   ├── TaskPage.jsx       # Trang quản lý tasks
+│   │   └── ...
+│   ├── services/          # API services
+│   │   ├── api.js         # Axios instance & API calls
+│   │   ├── authService.js # Authentication service
+│   │   └── googleAuth.js  # Google OAuth service
+│   ├── utils/             # Utility functions
+│   │   └── authHelper.js  # Helper functions cho auth
+│   ├── App.jsx            # Root component
+│   ├── App.css            # Global styles
+│   ├── main.jsx           # Entry point
+│   └── index.css          # Tailwind imports
+├── .env                   # Environment variables
+├── .gitignore            # Git ignore rules
+├── eslint.config.js      # ESLint configuration
+├── index.html            # HTML template
+├── package.json          # NPM dependencies
+├── postcss.config.js     # PostCSS config
+├── tailwind.config.js    # Tailwind configuration
+├── vite.config.js        # Vite configuration
+└── README.md             # Tài liệu này
 ```
 
-## 🚦 Cài đặt và chạy dự án
+---
 
-### Prerequisites
+## ⚙️ Các lệnh thường dùng
 
-- Node.js 18+ và npm
-- Git
+### Development
 
-### Cài đặt
+```powershell
+# Chạy dev server (hot reload)
+npm run dev
 
-1. Clone repository:
-   ```bash
-   git clone <repository-url>
-   cd taskhub-frontend
-   ```
+# Chạy dev server và mở browser tự động
+npm run dev -- --open
 
-2. Cài đặt dependencies:
-   ```bash
-   npm install
-   ```
+# Chạy dev server và expose ra network (truy cập từ máy khác)
+npm run dev -- --host
+```
 
-3. Tạo file môi trường:
-   ```bash
-   cp .env.example .env
-   ```
+### Build & Preview
 
-4. Chỉnh sửa file `.env` theo cấu hình của bạn:
-   ```
-   VITE_API_URL=http://localhost:3000/api/v1
-   VITE_AWS_REGION=us-east-1
-   VITE_COGNITO_USER_POOL_ID=your-user-pool-id
-   VITE_COGNITO_CLIENT_ID=your-client-id
-   ```
-
-5. Chạy development server:
-   ```bash
-   npm run dev
-   ```
-
-6. Mở trình duyệt và truy cập: `http://localhost:5173`
-
-### Build cho production
-
-```bash
+```powershell
+# Build cho production (tạo thư mục dist/)
 npm run build
-```
 
-### Preview production build
-
-```bash
+# Preview production build trước khi deploy
 npm run preview
 ```
 
-## 🔐 Authentication Flow
+### Code Quality
 
-Dự án đã được tích hợp sẵn để hoạt động với AWS Cognito:
+```powershell
+# Kiểm tra lỗi code với ESLint
+npm run lint
 
-1. **Login**: Form đăng nhập với email/password
-2. **Signup**: Form đăng ký với validation đầy đủ
-3. **Token Management**: Tự động refresh token khi hết hạn
-4. **Protected Routes**: Chỉ user đã đăng nhập mới truy cập được
-5. **Role-based Access**: Phân quyền theo vai trò user
+# Tự động fix các lỗi ESLint có thể fix
+npm run lint -- --fix
+```
 
-## 📊 API Integration
+### Package Management
 
-API service đã được cấu hình với:
+```powershell
+# Cài package mới
+npm install <package-name>
 
-- **Base URL**: Configurable through environment variables
-- **Authentication**: Automatic token attachment
-- **Error Handling**: Centralized error handling
-- **Request/Response Interceptors**: Auto token refresh
+# Cài package cho dev only
+npm install -D <package-name>
+
+# Gỡ package
+npm uninstall <package-name>
+
+# Cập nhật tất cả packages
+npm update
+
+# Kiểm tra packages lỗi thời
+npm outdated
+```
+
+---
+
+## 🌐 Backend API
+
+**Quan trọng**: Dự án này đã có backend API deploy sẵn trên AWS, bạn **không cần chạy backend local**.
 
 ### API Endpoints
 
-```javascript
-// Auth
-POST /auth/login
-POST /auth/signup
-POST /auth/logout
-GET /auth/me
-POST /auth/refresh
+- **Development**: `http://localhost:15155` (nếu có backend local)
+- **Production**: `https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod`
 
-// Projects
-GET /projects
-GET /projects/:id
-POST /projects
-PUT /projects/:id
-DELETE /projects/:id
+### Chạy với Production API
 
-// Tasks
-GET /tasks
-GET /tasks/:id
-POST /tasks
-PUT /tasks/:id
-DELETE /tasks/:id
-PATCH /tasks/:id/status
+Nếu muốn test với API production:
+
+```powershell
+# Tạm thời dùng env production cho dev
+npm run dev -- --mode production
 ```
 
-## 🎨 UI Components
-
-### Layout
-- **Navbar**: Responsive navigation với mobile menu
-- **Layout**: Wrapper layout với outlet cho pages
-
-### Pages
-- **Login**: Form đăng nhập với validation
-- **Signup**: Form đăng ký với role selection
-- **Dashboard**: Tổng quan với stats và recent activities
-
-### Planned Components
-- **ProjectList**: Danh sách dự án với filter/search
-- **TaskBoard**: Kanban board với drag & drop
-- **TaskCard**: Component hiển thị task
-- **Modal**: Reusable modal component
-
-## 🔄 State Management
-
-### AuthContext
-- User authentication state
-- Login/logout functionality
-- Token management
-- User profile data
-
-### AppContext
-- Project management state
-- Task management state
-- Filters và search state
-- Global loading và error states
-
-## 📱 Responsive Design
-
-Giao diện được thiết kế responsive với Tailwind CSS:
-- **Mobile**: < 640px
-- **Tablet**: 640px - 1024px  
-- **Desktop**: > 1024px
-
-## 🧪 Testing
-
-```bash
-# Run tests (to be implemented)
-npm test
-
-# Run tests with coverage
-npm run test:coverage
+Hoặc sửa file `.env` để trỏ đến production API:
+```env
+VITE_API_BASE_URL=https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod
 ```
 
-## 📈 Deployment
+---
 
-### AWS S3 + CloudFront (Recommended)
+## 🐛 Xử lý lỗi thường gặp
 
-1. Build project:
-   ```bash
-   npm run build
+### 1. Lỗi: `'node' is not recognized`
+
+**Nguyên nhân**: Chưa cài Node.js hoặc chưa thêm vào PATH.
+
+**Giải pháp**:
+1. Cài Node.js từ https://nodejs.org
+2. Đóng và mở lại PowerShell
+3. Kiểm tra: `node -v`
+
+### 2. Lỗi: `npm install` thất bại
+
+**Nguyên nhân**: Có thể do lỗi mạng hoặc quyền truy cập.
+
+**Giải pháp**:
+```powershell
+# Xóa thư mục node_modules và file lock
+Remove-Item -Recurse -Force node_modules
+Remove-Item package-lock.json
+
+# Cài lại
+npm install
+```
+
+### 3. Lỗi: `Cannot find module 'vite'`
+
+**Nguyên nhân**: Chưa cài dependencies.
+
+**Giải pháp**:
+```powershell
+npm install
+```
+
+### 4. Lỗi: Frontend chạy nhưng không gọi được API
+
+**Triệu chứng**: Các request API bị lỗi 404 hoặc timeout.
+
+**Kiểm tra**:
+1. Đang dùng API nào?
+   - **Production API** (khuyến nghị): `https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod`
+   - **Local API** (nếu có backend local): `http://localhost:15155`
+
+2. File `.env` có đúng URL không?
+   ```env
+   # Dùng Production API (khuyến nghị)
+   VITE_API_BASE_URL=https://ne6pw5hqej.execute-api.ap-southeast-1.amazonaws.com/prod
+   
+   # Hoặc Local API (nếu có backend)
+   # VITE_API_BASE_URL=http://localhost:15155
    ```
 
-2. Upload `dist` folder to S3 bucket
+3. Sau khi sửa `.env`, phải restart dev server:
+   ```powershell
+   # Nhấn Ctrl+C để dừng
+   # Rồi chạy lại
+   npm run dev
+   ```
 
-3. Configure CloudFront distribution
+### 5. Lỗi: `Port 5173 already in use`
 
-4. Setup Route53 for custom domain
+**Nguyên nhân**: Đã có ứng dụng khác chạy ở port 5173.
 
-### GitHub Actions CI/CD
+**Giải pháp 1**: Tắt ứng dụng đang chạy ở port đó.
 
-File workflow sẽ được tạo để tự động:
-- Build và test
-- Security scan
-- Deploy lên AWS S3
-- Invalidate CloudFront cache
+**Giải pháp 2**: Dùng port khác:
+```powershell
+npm run dev -- --port 3000
+```
 
-## 🔒 Security Features
+### 6. Lỗi CORS khi gọi API
 
-- **XSS Protection**: Sanitized inputs
-- **CSRF Protection**: Token-based authentication
-- **Secure Storage**: Token storage best practices
-- **API Security**: Request/response validation
-- **Role-based Access**: Authorization checks
+**Triệu chứng**: Console báo lỗi CORS policy.
 
-## 🌐 Environment Variables
+**Giải pháp**:
+- Đảm bảo backend đã enable CORS cho `http://localhost:5173`
+- Kiểm tra trong `Program.cs` của backend:
+  ```csharp
+  builder.Services.AddCors(options => {
+      options.AddPolicy("AllowFrontend", policy => {
+          policy.WithOrigins("http://localhost:5173")
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+      });
+  });
+  ```
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `https://api.taskhub.com/v1` |
-| `VITE_AWS_REGION` | AWS Region | `us-east-1` |
-| `VITE_COGNITO_USER_POOL_ID` | Cognito User Pool ID | `us-east-1_xxxxxxxx` |
-| `VITE_COGNITO_CLIENT_ID` | Cognito Client ID | `xxxxxxxxxxxxxxxxxx` |
+### 7. Lỗi: `npm ERR! code ENOENT`
 
-## 🤝 Contribution
+**Nguyên nhân**: Đang ở sai thư mục.
 
-1. Fork repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Create Pull Request
+**Giải pháp**:
+```powershell
+# Đảm bảo đang ở đúng thư mục
+cd D:\projectAWS\taskhub_frontend
 
-## 📄 License
+# Kiểm tra có file package.json không
+Get-ChildItem package.json
+```
 
-This project is licensed under the MIT License.
+### 8. Tailwind CSS không hoạt động
 
-## 👥 Team Roles
+**Triệu chứng**: Các class Tailwind không có style.
 
-Dự án này được phát triển theo mô hình team với các role:
+**Kiểm tra**:
+1. File `tailwind.config.js` có đúng content paths:
+   ```javascript
+   content: [
+     "./index.html",
+     "./src/**/*.{js,ts,jsx,tsx}",
+   ],
+   ```
+2. File `src/index.css` có import Tailwind:
+   ```css
+   @tailwind base;
+   @tailwind components;
+   @tailwind utilities;
+   ```
+3. Restart dev server
 
-1. **Backend Lead**: API design, architecture, code standards
-2. **Backend Developer 1**: Task CRUD, DynamoDB optimization  
-3. **Backend Developer 2**: Project/User CRUD, Auth & Security
-4. **Frontend Developer**: UI/UX, API integration (current role)
-5. **DevOps Engineer**: CI/CD, Infrastructure, Security monitoring
+---
 
-## 📞 Support
+## 🎯 Tính năng chính của ứng dụng
 
-Nếu có vấn đề hoặc câu hỏi, vui lòng tạo issue trên GitHub repository.
+- ✅ **Đăng nhập/Đăng ký** - Với AWS Cognito & Google OAuth
+- ✅ **Dashboard** - Tổng quan dự án và thống kê
+- ✅ **Quản lý Dự án** - CRUD operations cho projects
+- ✅ **Quản lý Task** - Kanban board với drag & drop
+- ✅ **Phân quyền** - Role-based: Admin, Manager, Member
+- ✅ **Upload files** - Đính kèm file vào task
+- ✅ **Thông báo** - Real-time toast notifications
+- ✅ **Responsive** - Hoạt động tốt trên mobile/tablet/desktop
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 📞 Hỗ trợ
 
-## Expanding the ESLint configuration
+Nếu gặp vấn đề không thể tự giải quyết:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. **Chụp màn hình** terminal với lỗi đỏ
+2. **Copy toàn bộ** thông báo lỗi
+3. **Ghi rõ** bước nào đang làm và lỗi xảy ra
+4. Liên hệ team để được hỗ trợ
+
+---
+
+## 📚 Tài liệu tham khảo
+
+- [React Documentation](https://react.dev/)
+- [Vite Guide](https://vitejs.dev/guide/)
+- [Tailwind CSS Docs](https://tailwindcss.com/docs)
+- [React Router](https://reactrouter.com/)
+- [Axios Documentation](https://axios-http.com/docs/intro)
+
+---
+
+**Chúc bạn code vui vẻ! 🚀**
